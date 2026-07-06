@@ -96,10 +96,15 @@ onAuthStateChanged(auth, async (usuario) => {
 
 function aplicarModoVisualizacao() {
 
-  document.body.classList.toggle(
+document.body.classList.toggle(
     "modo-visualizador",
-    !souEditor()
-  );
+    papelAtual === "visualizador"
+);
+
+document.body.classList.toggle(
+    "modo-vendedor",
+    papelAtual === "vendedor"
+);
 
   const selo = document.getElementById("selo-papel");
 
