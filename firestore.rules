@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    // "papeis/{email}" define quem pode editar. Sem documento = somente visualização.
+    // Gerenciado manualmente no console do Firestore (ver README).
+    function ehEditor() {
+      return autenticado() &&
+        exists(/databases/$(database)/documents/papeis/$(request.auth.token.email)) &&
+        get(/databases/$(database)/documents/papeis/$(request.auth.token.email)).data.papel == "editor";
+    }
+
+    match /papeis/{email} {
+      // cada pessoa só consegue ler o próprio papel; edição é feita manualmente no console
+      allow read: if autenticado() && request.auth.token.email == email;
+      allow write: if false;
+    }
+
+    match /fornecedores/{id} {
+      allow read: if autenticado();
+      allow write: if ehEditor();
+    }
+
+    match /produtos/{id} {
+      allow read: if autenticado();
+      allow write: if ehEditor();
+    }
+
+    match /cotacoes/{id} {
+      allow read: if autenticado();
+      allow write: if ehEditor();
+    }
+  }
+}

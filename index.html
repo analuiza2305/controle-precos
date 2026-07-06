@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Preços de Combustíveis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ===================== TELA DE LOGIN ===================== -->
+<div id="tela-login" class="tela-login">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-brand-icon">⛽</div>
+      <h1>Controle de Preços</h1>
+      <p>Comparativo diário de cotações entre fornecedores</p>
+    </div>
+
+    <form id="form-login" class="login-form">
+      <label>E-mail
+        <input type="email" id="login-email" required placeholder="voce@empresa.com" autocomplete="username">
+      </label>
+      <label>Senha
+        <input type="password" id="login-senha" required placeholder="••••••••" autocomplete="current-password">
+      </label>
+      <p id="login-erro" class="login-erro"></p>
+      <button type="submit" class="btn btn-primario btn-bloco">Entrar</button>
+    </form>
+    <p class="login-rodape">Acesso restrito à equipe comercial. Fale com o administrador para criar sua conta.</p>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app" class="app oculto">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <span class="sidebar-brand-icon">⛽</span>
+      <span class="sidebar-brand-texto">CombustívelPrice</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item ativo" data-view="dashboard">
+        <span class="nav-icon">▣</span> Dashboard
+      </button>
+      <button class="nav-item" data-view="lancamento">
+        <span class="nav-icon">＋</span> Lançar Preços
+      </button>
+      <button class="nav-item" data-view="comparativo">
+        <span class="nav-icon">⇄</span> Comparativo
+      </button>
+      <button class="nav-item" data-view="historico">
+        <span class="nav-icon">≡</span> Histórico
+      </button>
+      <button class="nav-item" data-view="fornecedores">
+        <span class="nav-icon">◆</span> Fornecedores
+      </button>
+      <button class="nav-item" data-view="produtos">
+        <span class="nav-icon">●</span> Produtos
+      </button>
+    </nav>
+
+    <div class="sidebar-rodape">
+      <span id="selo-papel" class="selo-papel"></span>
+      <div class="usuario-info">
+        <div class="usuario-avatar" id="usuario-avatar">U</div>
+        <div>
+          <div class="usuario-email" id="usuario-email">usuario@empresa.com</div>
+          <button id="btn-logout" class="link-sair">Sair</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="conteudo">
+
+    <!-- ---------- DASHBOARD ---------- -->
+    <section id="view-dashboard" class="view">
+      <header class="view-header">
+        <div>
+          <h2>Dashboard</h2>
+          <p class="view-sub">Panorama do mercado de combustíveis</p>
+        </div>
+        <div class="filtro-data">
+          <label>Data de referência
+            <input type="date" id="dash-data">
+          </label>
+        </div>
+      </header>
+
+      <div class="kpi-grid" id="kpi-grid">
+        <!-- KPIs injetados via JS -->
+      </div>
+
+      <div class="painel-grid">
+        <div class="painel">
+          <div class="painel-header">
+            <h3>Melhor preço por produto (hoje)</h3>
+          </div>
+          <div class="tabela-wrap">
+            <table class="tabela" id="tabela-melhores-hoje">
+              <thead>
+                <tr><th>Produto</th><th>Melhor fornecedor</th><th>Preço</th><th>Diferença vs. média</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="painel">
+          <div class="painel-header">
+            <h3>Evolução de preços</h3>
+            <select id="dash-produto-evolucao"></select>
+          </div>
+          <canvas id="grafico-evolucao" height="220"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- LANÇAMENTO ---------- -->
+    <section id="view-lancamento" class="view oculto">
+      <header class="view-header">
+        <div>
+          <h2>Lançar Preços do Dia</h2>
+          <p class="view-sub">Preencha rapidamente os preços informados por cada fornecedor</p>
+        </div>
+        <div class="filtro-data">
+          <label>Data da cotação
+            <input type="date" id="lanc-data">
+          </label>
+        </div>
+      </header>
+
+      <div class="painel">
+        <div class="aviso-visualizacao">👁 Você está em modo somente visualização — os preços não podem ser alterados por aqui.</div>
+        <div class="tabela-wrap">
+          <table class="tabela tabela-lancamento" id="tabela-lancamento">
+            <thead>
+              <tr id="lancamento-thead-row"><th>Produto</th></tr>
+            </thead>
+            <tbody id="lancamento-tbody"></tbody>
+          </table>
+        </div>
+        <div class="painel-acoes somente-editor">
+          <span id="lancamento-status" class="status-msg"></span>
+          <button id="btn-salvar-lancamento" class="btn btn-primario">Salvar lançamentos do dia</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- COMPARATIVO ---------- -->
+    <section id="view-comparativo" class="view oculto">
+      <header class="view-header">
+        <div>
+          <h2>Comparativo entre Fornecedores</h2>
+          <p class="view-sub">Ranking de preços por produto em uma data</p>
+        </div>
+        <div class="filtro-data">
+          <label>Data
+            <input type="date" id="comp-data">
+          </label>
+        </div>
+      </header>
+
+      <div class="painel" id="painel-comparativo">
+        <!-- Tabelas de ranking por produto injetadas via JS -->
+      </div>
+    </section>
+
+    <!-- ---------- HISTÓRICO ---------- -->
+    <section id="view-historico" class="view oculto">
+      <header class="view-header">
+        <div>
+          <h2>Histórico de Cotações</h2>
+          <p class="view-sub">Consulte, edite ou exclua lançamentos anteriores</p>
+        </div>
+      </header>
+
+      <div class="painel-filtros">
+        <div class="filtros-linha">
+          <label>De
+            <input type="date" id="hist-data-inicio">
+          </label>
+          <label>Até
+            <input type="date" id="hist-data-fim">
+          </label>
+          <label>Fornecedor
+            <select id="hist-fornecedor"><option value="">Todos</option></select>
+          </label>
+          <label>Produto
+            <select id="hist-produto"><option value="">Todos</option></select>
+          </label>
+          <button id="btn-filtrar-historico" class="btn btn-primario">Filtrar</button>
+        </div>
+      </div>
+
+      <div class="painel painel-historico">
+        <div class="historico-topo">
+          <span id="historico-contador" class="historico-contador"></span>
+          <span class="historico-dica somente-editor">Clique no preço para editar diretamente</span>
+        </div>
+        <div class="tabela-wrap">
+          <table class="tabela tabela-historico" id="tabela-historico">
+            <thead>
+              <tr><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Preço</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- FORNECEDORES ---------- -->
+    <section id="view-fornecedores" class="view oculto">
+      <header class="view-header">
+        <div>
+          <h2>Fornecedores</h2>
+          <p class="view-sub">Cadastro de distribuidoras</p>
+        </div>
+      </header>
+
+      <div class="painel painel-cadastro">
+        <form id="form-fornecedor" class="form-inline somente-editor">
+          <input type="text" id="fornecedor-nome" placeholder="Nome do fornecedor" required>
+          <button type="submit" class="btn btn-primario">Adicionar</button>
+        </form>
+        <div class="tabela-wrap">
+          <table class="tabela">
+            <thead><tr><th>Nome</th><th>Status</th><th></th></tr></thead>
+            <tbody id="tabela-fornecedores"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- PRODUTOS ---------- -->
+    <section id="view-produtos" class="view oculto">
+      <header class="view-header">
+        <div>
+          <h2>Produtos</h2>
+          <p class="view-sub">Cadastro de combustíveis acompanhados</p>
+        </div>
+      </header>
+
+      <div class="painel painel-cadastro">
+        <form id="form-produto" class="form-inline form-inline-produto somente-editor">
+          <input type="text" id="produto-nome" placeholder="Nome do produto (ex: Diesel S10)" required>
+          <select id="produto-categoria">
+            <option value="Diesel">Diesel</option>
+            <option value="Gasolina">Gasolina</option>
+            <option value="Etanol">Etanol</option>
+            <option value="GNV">GNV</option>
+            <option value="Outro">Outro</option>
+          </select>
+          <select id="produto-unidade">
+            <option value="Litro">Litro</option>
+            <option value="m³">m³</option>
+            <option value="Kg">Kg</option>
+          </select>
+          <button type="submit" class="btn btn-primario">Adicionar</button>
+        </form>
+        <div class="tabela-wrap">
+          <table class="tabela">
+            <thead><tr><th>Nome</th><th>Categoria</th><th>Unidade</th><th></th></tr></thead>
+            <tbody id="tabela-produtos"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+<div id="modal-confirmacao" class="modal oculto">
+  <div class="modal-caixa">
+    <p id="modal-texto">Confirma esta ação?</p>
+    <div class="modal-acoes">
+      <button id="modal-cancelar" class="btn btn-secundario">Cancelar</button>
+      <button id="modal-confirmar" class="btn btn-perigo">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script type="module" src="js/firebase-config.js"></script>
+<script type="module" src="js/utils.js"></script>
+<script type="module" src="js/auth.js"></script>
+<script type="module" src="js/fornecedores.js"></script>
+<script type="module" src="js/produtos.js"></script>
+<script type="module" src="js/cotacoes.js"></script>
+<script type="module" src="js/dashboard.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
