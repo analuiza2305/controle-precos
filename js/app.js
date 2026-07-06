@@ -3,6 +3,7 @@ import { iniciarFornecedores } from "./fornecedores.js";
 import { iniciarProdutos } from "./produtos.js";
 import { montarComparativo, carregarHistorico } from "./cotacoes.js";
 import { montarDashboard } from "./dashboard.js";
+import { souVendedor } from "./auth.js";
 
 const navItens = document.querySelectorAll(".nav-item");
 const views = document.querySelectorAll(".view");
@@ -47,4 +48,20 @@ aoLogar(() => {
   iniciarFornecedores();
   iniciarProdutos();
   montarDashboard();
+
+  if (souVendedor()) {
+
+  document.querySelector(
+    '[data-view="lancamento"]'
+  )?.remove();
+
+  document.querySelector(
+    '[data-view="fornecedores"]'
+  )?.remove();
+
+  document.querySelector(
+    '[data-view="produtos"]'
+  )?.remove();
+
+}
 });

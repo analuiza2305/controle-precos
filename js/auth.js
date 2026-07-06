@@ -18,8 +18,17 @@ const btnLogout = document.getElementById("btn-logout");
 // Papel do usuário logado: "editor" (pode lançar/editar/excluir) ou "visualizador" (só leitura).
 // Por padrão, sem registro em /papeis/{email}, o acesso é somente visualização.
 let papelAtual = "visualizador";
+
 export function souEditor() {
   return papelAtual === "editor";
+}
+
+export function souVendedor() {
+  return papelAtual === "vendedor";
+}
+
+export function papelUsuario() {
+  return papelAtual;
 }
 
 const callbacksLogin = [];
@@ -52,33 +61,72 @@ btnLogout.addEventListener("click", async () => {
 onAuthStateChanged(auth, async (usuario) => {
   if (usuario) {
     papelAtual = "visualizador";
+
     try {
-      const ref = doc(db, "papeis", (usuario.email || "").toLowerCase());
+
+      const ref = doc(
+        db,
+        "papeis",
+        (usuario.email || "").toLowerCase()
+      );
+
       const snap = await getDoc(ref);
-      if (snap.exists() && snap.data().papel === "editor") papelAtual = "editor";
+
+      if (snap.exists()) {
+
+        papelAtual =
+          snap.data().papel || "visualizador";
+
+      }
+
     } catch (err) {
-      console.warn("Não foi possível verificar o papel do usuário, aplicando somente visualização.", err);
     }
 
-    telaLogin.classList.add("oculto");
-    app.classList.remove("oculto");
-    usuarioEmailEl.textContent = usuario.email;
-    usuarioAvatarEl.textContent = (usuario.email || "U").charAt(0).toUpperCase();
-    aplicarModoVisualizacao();
-    callbacksLogin.forEach((cb) => cb(usuario));
-  } else {
-    app.classList.add("oculto");
-    telaLogin.classList.remove("oculto");
-  }
-});
+      telaLogin.classList.add("oculto");
+      app.classList.remove("oculto");
+      usuarioEmailEl.textContent = usuario.email;
+      usuarioAvatarEl.textContent = (usuario.email || "U").charAt(0).toUpperCase();
+      aplicarModoVisualizacao();
+      callbacksLogin.forEach((cb) => cb(usuario));
+    } else {
+      app.classList.add("oculto");
+      telaLogin.classList.remove("oculto");
+    }
+  });
 
 function aplicarModoVisualizacao() {
-  document.body.classList.toggle("modo-visualizador", !souEditor());
+
+  document.body.classList.toggle(
+    "modo-visualizador",
+    !souEditor()
+  );
+
   const selo = document.getElementById("selo-papel");
-  if (selo) {
-    selo.textContent = souEditor() ? "Editor" : "Somente visualização";
-    selo.className = `selo-papel ${souEditor() ? "selo-papel-editor" : "selo-papel-visualizador"}`;
+
+  if (!selo) return;
+
+  if (souEditor()) {
+
+    selo.textContent = "Editor";
+    selo.className =
+      "selo-papel selo-papel-editor";
+
+  } else if (souVendedor()) {
+
+    selo.textContent = "Vendedor";
+    selo.className =
+      "selo-papel selo-papel-visualizador";
+
+  } else {
+
+    selo.textContent =
+      "Somente visualização";
+
+    selo.className =
+      "selo-papel selo-papel-visualizador";
+
   }
+
 }
 
 function mensagemErroAuth(codigo) {
