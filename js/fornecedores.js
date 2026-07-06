@@ -45,9 +45,9 @@ function renderizarTabelaFornecedores() {
   }
   tbody.innerHTML = fornecedores.map((f) => `
     <tr>
-      <td>${escapeHtml(f.nome)}</td>
-      <td><span class="selo ${f.ativo !== false ? "selo-ativo" : "selo-inativo"}">${f.ativo !== false ? "Ativo" : "Inativo"}</span></td>
-      <td style="text-align:right; display:flex; gap:6px; justify-content:flex-end;" class="somente-editor">
+      <td data-label="Nome">${escapeHtml(f.nome)}</td>
+      <td data-label="Status"><span class="selo ${f.ativo !== false ? "selo-ativo" : "selo-inativo"}">${f.ativo !== false ? "Ativo" : "Inativo"}</span></td>
+      <td style="text-align:right; display:flex; gap:6px; justify-content:flex-end;" class="somente-editor" data-label="">
         <button class="btn-icone" data-acao="alternar" data-id="${f.id}" data-ativo="${f.ativo !== false}" title="${f.ativo !== false ? "Desativar" : "Ativar"}">⏻</button>
         <button class="btn-icone perigo" data-acao="excluir" data-id="${f.id}" title="Excluir">✕</button>
       </td>

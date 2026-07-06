@@ -36,10 +36,23 @@
 <!-- ===================== APP ===================== -->
 <div id="app" class="app oculto">
 
-  <aside class="sidebar">
+  <header class="topbar-mobile">
+    <button id="btn-menu-abrir" class="btn-menu-hamburguer" aria-label="Abrir menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="topbar-mobile-brand">
+      <span class="sidebar-brand-icon">⛽</span>
+      <span>CombustívelPrice</span>
+    </div>
+  </header>
+
+  <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <span class="sidebar-brand-icon">⛽</span>
       <span class="sidebar-brand-texto">CombustívelPrice</span>
+      <button id="btn-menu-fechar" class="btn-menu-fechar" aria-label="Fechar menu">✕</button>
     </div>
 
     <nav class="sidebar-nav">

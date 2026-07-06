@@ -400,13 +400,187 @@ button, input, select {
 }
 
 /* ===================== RESPONSIVO ===================== */
+
+/* Barra superior e botão de fechar da gaveta: só existem no mobile */
+.topbar-mobile { display: none; }
+.btn-menu-fechar { display: none; }
+.sidebar-overlay { display: none; }
+
 @media (max-width: 900px) {
-  .app { flex-direction: column; }
-  .sidebar { width: 100%; height: auto; position: relative; flex-direction: row; align-items: center; padding: 10px 14px; overflow-x: auto; }
-  .sidebar-brand { padding: 0 12px 0 0; }
-  .sidebar-nav { flex-direction: row; }
-  .nav-item span.nav-icon { margin-right: 2px; }
-  .sidebar-rodape { border-top: none; padding-top: 0; margin-left: auto; padding-left: 14px; }
+  .app { display: block; }
+
+  /* ---------- Barra superior fixa ---------- */
+  .topbar-mobile {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--navy-900); color: #fff;
+    padding: 12px 16px;
+    position: sticky; top: 0; z-index: 500;
+  }
+  .btn-menu-hamburguer {
+    background: none; border: none; cursor: pointer;
+    display: flex; flex-direction: column; justify-content: center; gap: 4px;
+    width: 30px; height: 30px; padding: 4px; flex-shrink: 0;
+  }
+  .btn-menu-hamburguer span { display: block; width: 100%; height: 2px; background: #fff; border-radius: 2px; }
+  .topbar-mobile-brand { display: flex; align-items: center; gap: 8px; font-family: var(--fonte-destaque); font-weight: 700; font-size: 14.5px; }
+  .topbar-mobile-brand .sidebar-brand-icon { font-size: 18px; }
+
+  /* ---------- Gaveta (drawer) ---------- */
+  .sidebar {
+    position: fixed; top: 0; left: 0; z-index: 1000;
+    width: 78%; max-width: 300px; height: 100vh;
+    flex-direction: column; align-items: stretch;
+    padding: 18px 16px;
+    overflow-y: auto; overflow-x: hidden;
+    transform: translateX(-100%);
+    transition: transform .28s ease;
+    box-shadow: 10px 0 34px rgba(0,0,0,.3);
+  }
+  .sidebar.aberta { transform: translateX(0); }
+
+  .sidebar-brand { padding: 4px 2px 20px; }
+  .btn-menu-fechar {
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-left: auto; background: rgba(255,255,255,.08); border: none;
+    color: #fff; width: 28px; height: 28px; border-radius: 6px;
+    font-size: 15px; cursor: pointer;
+  }
+  .btn-menu-fechar:hover { background: rgba(255,255,255,.16); }
+
+  .sidebar-nav { flex-direction: column; gap: 2px; }
+  .nav-item { padding: 12px 12px; font-size: 14.5px; }
+  .nav-icon { font-size: 16px; width: 20px; }
+
+  .sidebar-rodape { margin-left: 0; padding-left: 0; }
+
+  /* ---------- Fundo escurecido atrás da gaveta ---------- */
+  .sidebar-overlay {
+    display: block;
+    position: fixed; inset: 0; z-index: 900;
+    background: rgba(11,35,56,.5);
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s ease;
+  }
+  .sidebar-overlay.visivel { opacity: 1; pointer-events: auto; }
+
   .conteudo { padding: 20px; }
   .form-inline input { max-width: none; }
+
+  .painel-grid { gap: 14px; }
+  #grafico-evolucao { max-width: 100%; }
+}
+
+/* ---------- Telas de celular (até 600px) ---------- */
+@media (max-width: 600px) {
+  .tela-login { padding: 16px; }
+  .login-card { padding: 28px 22px 22px; border-radius: 12px; }
+
+  .topbar-mobile { padding: 10px 14px; }
+  .usuario-email { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .conteudo { padding: 14px 12px 40px; }
+
+  .view-header { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 16px; }
+  .view-header h2 { font-size: 19px; }
+  .filtro-data { width: 100%; }
+  .filtro-data input { width: 100%; }
+
+  .kpi-grid { grid-template-columns: 1fr; gap: 10px; }
+  .kpi-card { padding: 14px 16px; }
+  .kpi-valor { font-size: 20px; }
+
+  .painel { padding: 14px 14px 16px; border-radius: 8px; }
+  .painel-header { flex-wrap: wrap; gap: 8px; }
+
+  .tabela { font-size: 12.5px; }
+  .tabela th, .tabela td { padding: 7px 8px; }
+
+  /* Tabelas de relatório viram cartões empilhados (a de lançamento continua
+     como grade, pois é uma matriz produto × fornecedor) */
+  .tabela:not(.tabela-lancamento) { font-size: 13px; }
+  .tabela:not(.tabela-lancamento) thead { display: none; }
+  .tabela:not(.tabela-lancamento) tbody tr {
+    display: block;
+    border: 1px solid var(--borda);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    padding: 4px 12px;
+    background: var(--cartao);
+  }
+  .tabela:not(.tabela-lancamento) tbody tr:hover { background: var(--cartao); }
+  .tabela:not(.tabela-lancamento) tbody tr:last-child { margin-bottom: 0; }
+  .tabela:not(.tabela-lancamento) td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: right;
+    padding: 9px 0;
+    border-bottom: 1px dashed var(--borda);
+    white-space: normal;
+  }
+  .tabela:not(.tabela-lancamento) td:last-child { border-bottom: none; }
+  .tabela:not(.tabela-lancamento) td::before {
+    content: attr(data-label);
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+    color: var(--texto-suave); text-align: left; flex-shrink: 0;
+  }
+  .tabela:not(.tabela-lancamento) td:not([data-label]),
+  .tabela:not(.tabela-lancamento) td[data-label=""],
+  .tabela:not(.tabela-lancamento) td[colspan] {
+    display: block; text-align: left; padding: 9px 0;
+  }
+  .tabela:not(.tabela-lancamento) td:not([data-label])::before,
+  .tabela:not(.tabela-lancamento) td[data-label=""]::before,
+  .tabela:not(.tabela-lancamento) td[colspan]::before {
+    content: none;
+  }
+  .tabela:not(.tabela-lancamento) .linha-melhor,
+  .tabela:not(.tabela-lancamento) .linha-pior { border-left: none; }
+  .tabela:not(.tabela-lancamento) .linha-melhor { border-color: var(--verde); }
+  .tabela:not(.tabela-lancamento) .linha-pior { border-color: var(--vermelho); }
+  .tabela:not(.tabela-lancamento) .linha-melhor td:first-child,
+  .tabela:not(.tabela-lancamento) .linha-pior td:first-child { border-left: none; }
+  .tabela-historico .col-data,
+  .tabela-historico .col-preco,
+  .tabela-historico .col-acao { width: auto; }
+  .tabela-lancamento { min-width: 480px; } /* mantém a grade de lançamento rolável na horizontal */
+
+  /* Formulários de cadastro: empilham e ocupam a largura toda */
+  .form-inline, .form-inline-produto {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .form-inline input, .form-inline select,
+  .form-inline-produto input, .form-inline-produto select {
+    max-width: none;
+    width: 100%;
+  }
+  .form-inline button, .form-inline-produto button { width: 100%; }
+
+  .filtros-linha { flex-direction: column; align-items: stretch; gap: 10px; }
+  .filtros-linha label { width: 100%; }
+  .filtros-linha select, .filtros-linha input { width: 100%; }
+  .filtros-linha .btn { width: 100%; }
+
+  .painel-acoes { flex-direction: column; align-items: stretch; gap: 10px; }
+  .painel-acoes .btn { width: 100%; }
+
+  .historico-topo { flex-direction: column; align-items: flex-start; gap: 6px; }
+
+  .produto-titulo { flex-direction: column; align-items: flex-start; gap: 6px; }
+
+  .modal-caixa { width: calc(100vw - 40px); max-width: 320px; padding: 18px 18px; }
+  .modal-acoes { flex-direction: column-reverse; gap: 8px; }
+  .modal-acoes .btn { width: 100%; }
+
+  .toast-container { left: 12px; right: 12px; bottom: 12px; }
+  .toast { text-align: center; }
+}
+
+/* ---------- Telas bem pequenas (até 380px) ---------- */
+@media (max-width: 380px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .login-card { padding: 24px 18px 18px; }
+  .login-brand h1 { font-size: 17px; }
 }

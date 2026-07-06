@@ -36,10 +36,10 @@ function renderizarTabelaProdutos() {
   }
   tbody.innerHTML = produtos.map((p) => `
     <tr>
-      <td><strong>${escapeHtml(p.nome)}</strong></td>
-      <td>${escapeHtml(p.categoria || "-")}</td>
-      <td>${escapeHtml(p.unidade || "-")}</td>
-      <td style="text-align:right;" class="somente-editor">
+      <td data-label="Nome"><strong>${escapeHtml(p.nome)}</strong></td>
+      <td data-label="Categoria">${escapeHtml(p.categoria || "-")}</td>
+      <td data-label="Unidade">${escapeHtml(p.unidade || "-")}</td>
+      <td style="text-align:right;" class="somente-editor" data-label="">
         <button class="btn-icone perigo" data-id="${p.id}" title="Excluir">✕</button>
       </td>
     </tr>

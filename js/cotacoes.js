@@ -185,10 +185,10 @@ export async function montarComparativo() {
         : c.preco === max && max !== min
           ? `<span class="selo selo-pior">Maior preço</span>` : "";
       return `<tr class="${classe}">
-        <td><span class="${rankClasse}">${i + 1}º</span></td>
-        <td><span class="fornecedor-dot" style="background:${corFornecedor(c.fornecedorId)}"></span>${nomeFornecedor(c.fornecedorId)}</td>
-        <td class="preco">${formatarPreco(c.preco)}</td>
-        <td>${selo}</td>
+        <td data-label="Rank"><span class="${rankClasse}">${i + 1}º</span></td>
+        <td data-label="Fornecedor"><span class="fornecedor-dot" style="background:${corFornecedor(c.fornecedorId)}"></span>${nomeFornecedor(c.fornecedorId)}</td>
+        <td class="preco" data-label="Preço">${formatarPreco(c.preco)}</td>
+        <td data-label="">${selo}</td>
       </tr>`;
     }).join("");
 
@@ -258,15 +258,15 @@ export async function carregarHistorico() {
 
   tabelaHistorico.innerHTML = filtradas.map((c) => `
     <tr>
-      <td class="col-data">${formatarData(c.data)}</td>
-      <td><span class="fornecedor-dot" style="background:${corFornecedor(c.fornecedorId)}"></span>${nomeFornecedor(c.fornecedorId)}</td>
-      <td>${nomeProduto(c.produtoId)}</td>
-      <td class="col-preco">
+      <td class="col-data" data-label="Data">${formatarData(c.data)}</td>
+      <td data-label="Fornecedor"><span class="fornecedor-dot" style="background:${corFornecedor(c.fornecedorId)}"></span>${nomeFornecedor(c.fornecedorId)}</td>
+      <td data-label="Produto">${nomeProduto(c.produtoId)}</td>
+      <td class="col-preco" data-label="Preço">
         <input type="number" step="0.001" value="${c.preco}" data-editar="${c.id}"
           data-data="${c.data}" data-fornecedor="${c.fornecedorId}" data-produto="${c.produtoId}"
           class="input-preco-historico">
       </td>
-      <td class="col-acao somente-editor">
+      <td class="col-acao somente-editor" data-label="">
         <button class="btn-icone perigo" data-excluir="${c.id}" title="Excluir">✕</button>
       </td>
     </tr>

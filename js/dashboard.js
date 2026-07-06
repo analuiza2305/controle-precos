@@ -79,16 +79,16 @@ function montarTabelaMelhoresHoje(cotacoes) {
   const linhas = produtos.map((p) => {
     const doProduto = cotacoes.filter((c) => c.produtoId === p.id);
     if (doProduto.length === 0) {
-      return `<tr><td>${p.nome}</td><td colspan="3" style="color:var(--texto-fraco)">Sem cotação hoje</td></tr>`;
+      return `<tr><td data-label="Produto">${p.nome}</td><td colspan="3" style="color:var(--texto-fraco)">Sem cotação hoje</td></tr>`;
     }
     const media = doProduto.reduce((a, c) => a + c.preco, 0) / doProduto.length;
     const melhor = doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0]);
     const diferenca = melhor.preco - media;
     return `<tr class="linha-melhor">
-      <td><strong>${p.nome}</strong></td>
-      <td>${nomeFornecedor(melhor.fornecedorId)}</td>
-      <td class="preco">${formatarPreco(melhor.preco)}</td>
-      <td style="color:${diferenca <= 0 ? "var(--verde)" : "var(--vermelho)"}">${formatarPreco(diferenca)}</td>
+      <td data-label="Produto"><strong>${p.nome}</strong></td>
+      <td data-label="Melhor fornecedor">${nomeFornecedor(melhor.fornecedorId)}</td>
+      <td class="preco" data-label="Preço">${formatarPreco(melhor.preco)}</td>
+      <td data-label="Diferença vs. média" style="color:${diferenca <= 0 ? "var(--verde)" : "var(--vermelho)"}">${formatarPreco(diferenca)}</td>
     </tr>`;
   }).join("");
   tabelaMelhoresHoje.innerHTML = linhas;

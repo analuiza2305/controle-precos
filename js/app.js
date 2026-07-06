@@ -8,7 +8,10 @@ const navItens = document.querySelectorAll(".nav-item");
 const views = document.querySelectorAll(".view");
 
 navItens.forEach((btn) => {
-  btn.addEventListener("click", () => mudarView(btn.dataset.view));
+  btn.addEventListener("click", () => {
+    mudarView(btn.dataset.view);
+    fecharMenuMobile();
+  });
 });
 
 function mudarView(nomeView) {
@@ -19,6 +22,25 @@ function mudarView(nomeView) {
   if (nomeView === "comparativo") montarComparativo();
   if (nomeView === "historico") carregarHistorico();
 }
+
+// ---------- Menu gaveta (mobile) ----------
+const sidebarEl = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebar-overlay");
+const btnMenuAbrir = document.getElementById("btn-menu-abrir");
+const btnMenuFechar = document.getElementById("btn-menu-fechar");
+
+function abrirMenuMobile() {
+  sidebarEl?.classList.add("aberta");
+  sidebarOverlay?.classList.add("visivel");
+}
+function fecharMenuMobile() {
+  sidebarEl?.classList.remove("aberta");
+  sidebarOverlay?.classList.remove("visivel");
+}
+
+btnMenuAbrir?.addEventListener("click", abrirMenuMobile);
+btnMenuFechar?.addEventListener("click", fecharMenuMobile);
+sidebarOverlay?.addEventListener("click", fecharMenuMobile);
 
 // Assim que o usuário autentica, inicia os listeners em tempo real do Firestore
 aoLogar(() => {
