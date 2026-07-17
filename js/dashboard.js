@@ -60,7 +60,7 @@ function montarKpis(cotacoes) {
       <div class="kpi-sub">${min > 0 ? ((max - min) / min * 100).toFixed(1) : "0"}% de variação</div>
     </div>
     <div class="kpi-card" style="--barra-cor: var(--azul-acao)">
-      <div class="kpi-label">Média de mercado</div>
+      <div class="kpi-label">Média de custo</div>
       <div class="kpi-valor">${formatarPreco(media)}</div>
       <div class="kpi-gauge">
         <div class="kpi-gauge-fill" style="width:100%"></div>
