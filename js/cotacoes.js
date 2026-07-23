@@ -319,8 +319,17 @@ function montarFaixaDestaques(cotacoes, data) {
         <p class="destaque-vazio-texto">Sem cotação em ${formatarData(data)}</p>
       </div>`;
     }
+    // ✓ Melhor preço do dia (menor entre todos os fornecedores)
     const melhor = doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0]);
-    const diff = diferencaPreco(melhor.preco, melhor.precoPuxado);
+    
+    // ✓ Melhor preço puxado (menor entre todos os fornecedores, independente)
+    const precosPuxados = doProduto
+      .filter((c) => c.precoPuxado !== null && c.precoPuxado !== undefined && !isNaN(c.precoPuxado))
+      .map((c) => c.precoPuxado);
+    const melhorPuxado = precosPuxados.length > 0 ? Math.min(...precosPuxados) : null;
+    
+    // ✓ Compara os dois melhores valores, independentes
+    const diff = diferencaPreco(melhor.preco, melhorPuxado);
     return `<div class="destaque-card">
       <span class="destaque-tag">${p.nome}</span>
       <div class="destaque-valor">${formatarPreco(melhor.preco)}</div>
