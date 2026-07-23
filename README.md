@@ -95,10 +95,10 @@ Se um dia quiser trocar alguém de visualizador para editor (ou vice-versa), é 
 
 
 1. **Fornecedores** e **Produtos**: cadastre uma vez as distribuidoras e os combustíveis acompanhados (ex.: Diesel S10, Diesel S500, Gasolina Comum, Etanol).
-2. **Lançar Preços**: escolha a data (vem preenchida com hoje) e digite o preço de cada fornecedor por produto. Cada campo salva sozinho ao sair dele (não precisa clicar em nada), e o botão "Salvar lançamentos do dia" garante que tudo foi gravado.
-3. **Comparativo**: mostra, para a data escolhida, o ranking de fornecedores por produto, do mais barato ao mais caro, com destaque visual para o melhor e o pior preço.
-4. **Dashboard**: indicadores do dia (melhor preço, maior preço, diferença, média de mercado) e gráfico de evolução dos últimos 30 dias com lançamento para o produto selecionado.
-5. **Histórico**: consulta com filtros por período, fornecedor e produto; permite editar o preço direto na tabela ou excluir um lançamento.
+2. **Lançar Preços**: escolha a data (vem preenchida com hoje) e digite, para cada fornecedor e produto, o **preço do dia** e — se houver — o **preço puxado** (a referência de tabela do fornecedor). Cada campo salva sozinho ao sair dele (não precisa clicar em nada), e o botão "Salvar lançamentos do dia" garante que tudo foi gravado. Produtos identificados como Diesel S10/S500 recebem uma etiqueta "destaque".
+3. **Comparativo**: mostra, para a data escolhida, uma faixa com o melhor preço do dia dos produtos S10/S500 em destaque, seguida do ranking de fornecedores por produto (do mais barato ao mais caro) com preço do dia, preço puxado e a diferença entre eles em R$ e %.
+4. **Dashboard**: cards de destaque com o melhor preço do dia dos produtos S10/S500 (e a diferença vs. o preço puxado), indicadores do dia (melhor preço, maior preço, diferença, média de mercado) e gráfico de evolução dos últimos 30 dias com lançamento para o produto selecionado.
+5. **Histórico**: consulta com filtros por período, fornecedor e produto, com gráfico de evolução (melhor preço do dia × média do preço puxado) do período filtrado; permite editar o preço do dia e o preço puxado direto na tabela ou excluir um lançamento.
 
 ## Modelo de dados (Firestore)
 
@@ -106,7 +106,7 @@ Se um dia quiser trocar alguém de visualizador para editor (ou vice-versa), é 
 |---|---|
 | `fornecedores` | `nome` (string), `ativo` (boolean) |
 | `produtos` | `nome` (string), `categoria` (string), `unidade` (string) |
-| `cotacoes` | `data` (string `AAAA-MM-DD`), `fornecedorId`, `produtoId`, `preco` (number), `atualizadoEm` |
+| `cotacoes` | `data` (string `AAAA-MM-DD`), `fornecedorId`, `produtoId`, `preco` (number, preço do dia), `precoPuxado` (number, preço de referência puxado da tabela do fornecedor — opcional), `atualizadoEm` |
 | `papeis` | ID do documento = e-mail da pessoa · `papel` (`"editor"`, ausência = somente visualização) |
 
 O ID de cada documento em `cotacoes` é gerado como `data__fornecedorId__produtoId`,

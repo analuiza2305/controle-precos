@@ -106,8 +106,8 @@
         </div>
       </header>
 
-      <div class="kpi-grid" id="kpi-grid">
-        <!-- KPIs injetados via JS -->
+      <div class="destaque-grid" id="destaque-grid">
+        <!-- Cards de destaque (melhor preço S10/S500) injetados via JS -->
       </div>
 
       <div class="painel-grid">
@@ -118,7 +118,7 @@
           <div class="tabela-wrap">
             <table class="tabela" id="tabela-melhores-hoje">
               <thead>
-                <tr><th>Produto</th><th>Melhor fornecedor</th><th>Preço</th><th>Diferença vs. média</th></tr>
+                <tr><th>Produto</th><th>Melhor fornecedor</th><th>Preço do dia</th><th>Preço puxado</th><th>Dia × puxado</th></tr>
               </thead>
               <tbody></tbody>
             </table>
@@ -133,6 +133,19 @@
           <canvas id="grafico-evolucao" height="220"></canvas>
         </div>
       </div>
+
+      <div class="painel painel-anotacoes">
+        <div class="painel-header">
+          <h3>Anotações do dia</h3>
+          <span class="anotacoes-status" id="anotacoes-status"></span>
+        </div>
+        <textarea id="dash-anotacoes" class="anotacoes-textarea" maxlength="2000"
+          placeholder="Registre aqui alguma observação sobre o mercado, cotações ou fornecedores de hoje..."></textarea>
+        <div class="anotacoes-rodape">
+          <span class="anotacoes-contador" id="anotacoes-contador">0/2000</span>
+          <button type="button" class="btn btn-primario" id="btn-salvar-anotacao">Salvar observação</button>
+        </div>
+      </div>
     </section>
 
     <!-- ---------- LANÇAMENTO ---------- -->
@@ -140,7 +153,7 @@
       <header class="view-header">
         <div>
           <h2>Lançar Preços do Dia</h2>
-          <p class="view-sub">Preencha rapidamente os preços informados por cada fornecedor</p>
+          <p class="view-sub">Preencha o preço praticado no dia e, se houver, o preço puxado (referência da tabela do fornecedor)</p>
         </div>
         <div class="filtro-data">
           <label>Data da cotação
@@ -212,6 +225,15 @@
         </div>
       </div>
 
+      <div class="painel painel-grafico-historico oculto" id="painel-grafico-historico">
+        <div class="painel-header">
+          <h3>Evolução no período</h3>
+        </div>
+        <div class="grafico-historico-wrap">
+          <canvas id="grafico-historico"></canvas>
+        </div>
+      </div>
+
       <div class="painel painel-historico">
         <div class="historico-topo">
           <span id="historico-contador" class="historico-contador"></span>
@@ -220,7 +242,7 @@
         <div class="tabela-wrap">
           <table class="tabela tabela-historico" id="tabela-historico">
             <thead>
-              <tr><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Preço</th><th></th></tr>
+              <tr><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Preço do dia</th><th>Preço puxado</th><th>Dia × puxado</th><th></th></tr>
             </thead>
             <tbody></tbody>
           </table>

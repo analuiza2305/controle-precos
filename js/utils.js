@@ -72,3 +72,31 @@ export function debounce(fn, espera = 400) {
     t = setTimeout(() => fn(...args), espera);
   };
 }
+
+// ============================================================
+// COMPARATIVO PREÇO DO DIA × PREÇO PUXADO
+// ============================================================
+
+export function formatarPercentual(valor) {
+  if (valor === null || valor === undefined || isNaN(valor)) return "-";
+  const sinal = valor > 0 ? "+" : "";
+  return `${sinal}${valor.toFixed(1)}%`;
+}
+
+// Calcula a diferença (em R$ e em %) entre o preço do dia e o preço puxado.
+// Retorna null quando não há os dois valores para comparar.
+export function diferencaPreco(precoDia, precoPuxado) {
+  const dia = Number(precoDia);
+  const puxado = Number(precoPuxado);
+  if (precoDia === null || precoDia === undefined || precoDia === "" || isNaN(dia)) return null;
+  if (precoPuxado === null || precoPuxado === undefined || precoPuxado === "" || isNaN(puxado) || puxado === 0) return null;
+  const valor = dia - puxado;
+  const percentual = (valor / puxado) * 100;
+  return { valor, percentual };
+}
+
+// Identificação de produtos em destaque (Diesel S10 / S500) a partir do nome
+// cadastrado, tolerando variações como "S10", "S-10", "S 10".
+export function ehProdutoS10(nome) { return /\bs\W?10\b/i.test(nome || ""); }
+export function ehProdutoS500(nome) { return /\bs\W?500\b/i.test(nome || ""); }
+export function ehProdutoDestaque(nome) { return ehProdutoS10(nome) || ehProdutoS500(nome); }

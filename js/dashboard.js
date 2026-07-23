@@ -1,10 +1,12 @@
+import { db, auth } from "./firebase-config.js";
+import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { produtos, aoAtualizarProdutos } from "./produtos.js";
 import { aoAtualizarFornecedores } from "./fornecedores.js";
 import { buscarCotacoesPorData, buscarCotacoesRecentes, nomeFornecedor, nomeProduto } from "./cotacoes.js";
-import { formatarPreco, hojeISO } from "./utils.js";
+import { formatarPreco, hojeISO, diferencaPreco, formatarPercentual, ehProdutoDestaque, toast, debounce } from "./utils.js";
 
 const inputData = document.getElementById("dash-data");
-const kpiGrid = document.getElementById("kpi-grid");
+const destaqueGrid = document.getElementById("destaque-grid");
 const tabelaMelhoresHoje = document.querySelector("#tabela-melhores-hoje tbody");
 const selectProdutoEvolucao = document.getElementById("dash-produto-evolucao");
 let grafico = null;
@@ -23,72 +25,59 @@ aoAtualizarFornecedores(montarDashboard);
 export async function montarDashboard() {
   const data = inputData.value || hojeISO();
   const cotacoes = await buscarCotacoesPorData(data);
-  montarKpis(cotacoes);
+  montarDestaques(cotacoes, data);
   montarTabelaMelhoresHoje(cotacoes);
   montarGraficoEvolucao();
+  carregarAnotacao(data);
 }
 
-function montarKpis(cotacoes) {
-  if (cotacoes.length === 0) {
-    kpiGrid.innerHTML = `
-      <div class="painel" style="grid-column:1/-1;"><p style="margin:0; color:var(--texto-fraco);">Nenhuma cotação lançada para esta data ainda. Acesse <strong>Lançar Preços</strong> para começar.</p></div>`;
-    return;
-  }
-  const precos = cotacoes.map((c) => c.preco);
-  const min = Math.min(...precos);
-  const max = Math.max(...precos);
-  const media = precos.reduce((a, b) => a + b, 0) / precos.length;
-  const cMin = cotacoes.find((c) => c.preco === min);
-  const cMax = cotacoes.find((c) => c.preco === max);
+// Cards de destaque com o melhor preço do dia para os produtos identificados
+// como S10 / S500 (por nome do produto cadastrado).
+function montarDestaques(cotacoes, data) {
+  if (!destaqueGrid) return;
+  const produtosDestaque = produtos.filter((p) => ehProdutoDestaque(p.nome));
+  if (produtosDestaque.length === 0) { destaqueGrid.innerHTML = ""; return; }
 
-  const posGauge = max === min ? 50 : ((media - min) / (max - min)) * 100;
-
-  kpiGrid.innerHTML = `
-    <div class="kpi-card" style="--barra-cor: var(--verde)">
-      <div class="kpi-label">Melhor preço do dia</div>
-      <div class="kpi-valor">${formatarPreco(min)}</div>
-      <div class="kpi-sub">${nomeFornecedor(cMin.fornecedorId)} · ${nomeProduto(cMin.produtoId)}</div>
-    </div>
-    <div class="kpi-card" style="--barra-cor: var(--vermelho)">
-      <div class="kpi-label">Maior preço do dia</div>
-      <div class="kpi-valor">${formatarPreco(max)}</div>
-      <div class="kpi-sub">${nomeFornecedor(cMax.fornecedorId)} · ${nomeProduto(cMax.produtoId)}</div>
-    </div>
-    <div class="kpi-card" style="--barra-cor: var(--ambar)">
-      <div class="kpi-label">Diferença mín. × máx.</div>
-      <div class="kpi-valor">${formatarPreco(max - min)}</div>
-      <div class="kpi-sub">${min > 0 ? ((max - min) / min * 100).toFixed(1) : "0"}% de variação</div>
-    </div>
-    <div class="kpi-card" style="--barra-cor: var(--azul-acao)">
-      <div class="kpi-label">Média de custo</div>
-      <div class="kpi-valor">${formatarPreco(media)}</div>
-      <div class="kpi-gauge">
-        <div class="kpi-gauge-fill" style="width:100%"></div>
-        <div class="kpi-gauge-marker" style="left:${posGauge}%"></div>
-      </div>
-      <div class="kpi-sub">Baseado em ${cotacoes.length} cotação(ões)</div>
-    </div>
-  `;
+  destaqueGrid.innerHTML = produtosDestaque.map((p) => {
+    const doProduto = cotacoes.filter((c) => c.produtoId === p.id && c.preco !== null && c.preco !== undefined);
+    if (doProduto.length === 0) {
+      return `<div class="destaque-card destaque-vazio">
+        <span class="destaque-tag">${p.nome}</span>
+        <p class="destaque-vazio-texto">Sem cotação nesta data</p>
+      </div>`;
+    }
+    const melhor = doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0]);
+    const diff = diferencaPreco(melhor.preco, melhor.precoPuxado);
+    return `<div class="destaque-card">
+      <span class="destaque-tag">${p.nome}</span>
+      <div class="destaque-valor">${formatarPreco(melhor.preco)}</div>
+      <div class="destaque-sub">${nomeFornecedor(melhor.fornecedorId)}</div>
+      ${diff ? `<div class="destaque-diff ${diff.valor <= 0 ? "boa" : "ruim"}">vs. puxado: ${formatarPreco(diff.valor)} (${formatarPercentual(diff.percentual)})</div>` : ""}
+    </div>`;
+  }).join("");
 }
 
 function montarTabelaMelhoresHoje(cotacoes) {
   if (produtos.length === 0) {
-    tabelaMelhoresHoje.innerHTML = `<tr><td colspan="4" style="color:var(--texto-fraco)">Cadastre produtos para ver este ranking.</td></tr>`;
+    tabelaMelhoresHoje.innerHTML = `<tr><td colspan="5" style="color:var(--texto-fraco)">Cadastre produtos para ver este ranking.</td></tr>`;
     return;
   }
   const linhas = produtos.map((p) => {
-    const doProduto = cotacoes.filter((c) => c.produtoId === p.id);
+    const doProduto = cotacoes.filter((c) => c.produtoId === p.id && c.preco !== null && c.preco !== undefined);
     if (doProduto.length === 0) {
-      return `<tr><td data-label="Produto">${p.nome}</td><td colspan="3" style="color:var(--texto-fraco)">Sem cotação hoje</td></tr>`;
+      return `<tr><td data-label="Produto">${p.nome}</td><td colspan="4" style="color:var(--texto-fraco)">Sem cotação hoje</td></tr>`;
     }
-    const media = doProduto.reduce((a, c) => a + c.preco, 0) / doProduto.length;
     const melhor = doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0]);
-    const diferenca = melhor.preco - media;
+    const diff = diferencaPreco(melhor.preco, melhor.precoPuxado);
+    const diffHtml = diff
+      ? `<span style="color:${diff.valor <= 0 ? "var(--verde)" : "var(--vermelho)"}">${formatarPreco(diff.valor)} (${formatarPercentual(diff.percentual)})</span>`
+      : `<span style="color:var(--texto-fraco)">—</span>`;
     return `<tr class="linha-melhor">
       <td data-label="Produto"><strong>${p.nome}</strong></td>
       <td data-label="Melhor fornecedor">${nomeFornecedor(melhor.fornecedorId)}</td>
-      <td class="preco" data-label="Preço">${formatarPreco(melhor.preco)}</td>
-      <td data-label="Diferença vs. média" style="color:${diferenca <= 0 ? "var(--verde)" : "var(--vermelho)"}">${formatarPreco(diferenca)}</td>
+      <td class="preco" data-label="Preço do dia">${formatarPreco(melhor.preco)}</td>
+      <td class="preco" data-label="Preço puxado">${formatarPreco(melhor.precoPuxado)}</td>
+      <td data-label="Dia × puxado">${diffHtml}</td>
     </tr>`;
   }).join("");
   tabelaMelhoresHoje.innerHTML = linhas;
@@ -102,7 +91,7 @@ async function montarGraficoEvolucao() {
     return;
   }
   const todas = await buscarCotacoesRecentes(3000);
-  const doProduto = todas.filter((c) => c.produtoId === produtoId);
+  const doProduto = todas.filter((c) => c.produtoId === produtoId && c.preco !== null && c.preco !== undefined);
 
   // Agrupa por data: guarda o melhor (menor) preço do dia e a média do dia
   const porData = {};
@@ -134,4 +123,75 @@ async function montarGraficoEvolucao() {
       }
     }
   });
+}
+
+// ============================================================
+// ANOTAÇÕES DO DIA
+// ============================================================
+const textareaAnotacoes = document.getElementById("dash-anotacoes");
+const anotacoesStatus = document.getElementById("anotacoes-status");
+const anotacoesContador = document.getElementById("anotacoes-contador");
+const btnSalvarAnotacao = document.getElementById("btn-salvar-anotacao");
+
+let dataAnotacaoAtual = null;
+
+async function carregarAnotacao(data) {
+  if (!textareaAnotacoes) return;
+  dataAnotacaoAtual = data;
+  textareaAnotacoes.disabled = true;
+  anotacoesStatus.textContent = "Carregando...";
+  anotacoesStatus.className = "anotacoes-status";
+  try {
+    const snap = await getDoc(doc(db, "notas", data));
+    // Evita sobrescrever se a data mudou enquanto a busca estava em andamento
+    if (dataAnotacaoAtual !== data) return;
+    textareaAnotacoes.value = snap.exists() ? (snap.data().texto || "") : "";
+    atualizarContador();
+    anotacoesStatus.textContent = snap.exists() && snap.data().atualizadoEm
+      ? `Última atualização: ${new Date(snap.data().atualizadoEm).toLocaleString("pt-BR")}`
+      : "";
+  } catch (e) {
+    anotacoesStatus.textContent = "Não foi possível carregar as anotações.";
+  } finally {
+    if (dataAnotacaoAtual === data) textareaAnotacoes.disabled = false;
+  }
+}
+
+function atualizarContador() {
+  if (!anotacoesContador) return;
+  anotacoesContador.textContent = `${textareaAnotacoes.value.length}/2000`;
+}
+
+async function salvarAnotacao({ silencioso = false } = {}) {
+  if (!textareaAnotacoes) return;
+  const data = dataAnotacaoAtual || inputData.value || hojeISO();
+  const texto = textareaAnotacoes.value.trim();
+  anotacoesStatus.textContent = "Salvando...";
+  anotacoesStatus.className = "anotacoes-status salvando";
+  try {
+    await setDoc(doc(db, "notas", data), {
+      data, texto,
+      atualizadoEm: new Date().toISOString(),
+      atualizadoPor: auth.currentUser?.email || null
+    }, { merge: true });
+    anotacoesStatus.textContent = `Salvo às ${new Date().toLocaleTimeString("pt-BR")}`;
+    anotacoesStatus.className = "anotacoes-status salvo";
+    if (!silencioso) toast("Observação salva.", "sucesso");
+  } catch (e) {
+    anotacoesStatus.textContent = "Erro ao salvar. Tente novamente.";
+    anotacoesStatus.className = "anotacoes-status";
+    if (!silencioso) toast("Não foi possível salvar a observação.", "erro");
+  }
+}
+
+const salvarAnotacaoAutomatico = debounce(() => salvarAnotacao({ silencioso: true }), 1200);
+
+if (textareaAnotacoes) {
+  textareaAnotacoes.addEventListener("input", () => {
+    atualizarContador();
+    salvarAnotacaoAutomatico();
+  });
+}
+if (btnSalvarAnotacao) {
+  btnSalvarAnotacao.addEventListener("click", () => salvarAnotacao({ silencioso: false }));
 }

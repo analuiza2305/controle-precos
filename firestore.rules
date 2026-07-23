@@ -34,5 +34,12 @@ service cloud.firestore {
       allow read: if autenticado();
       allow write: if ehEditor();
     }
+
+    // Anotações do dia: qualquer pessoa autenticada pode registrar observações,
+    // independente do papel (editor ou somente visualização).
+    match /notas/{id} {
+      allow read: if autenticado();
+      allow write: if autenticado();
+    }
   }
 }

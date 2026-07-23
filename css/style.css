@@ -175,36 +175,6 @@ button, input, select {
   padding: 8px 10px; border: 1px solid var(--borda); border-radius: 7px; font-size: 13.5px;
 }
 
-/* ===================== KPIs ===================== */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
-  margin-bottom: 22px;
-}
-.kpi-card {
-  background: var(--cartao);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  padding: 16px 18px;
-  box-shadow: var(--sombra);
-  position: relative;
-  overflow: hidden;
-}
-.kpi-card::before {
-  content: '';
-  position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
-  background: var(--barra-cor, var(--azul-acao));
-}
-.kpi-label { font-size: 12px; color: var(--texto-suave); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-.kpi-valor { font-family: var(--fonte-mono); font-size: 24px; font-weight: 600; margin-top: 6px; }
-.kpi-sub { font-size: 12px; color: var(--texto-fraco); margin-top: 4px; }
-
-/* Gauge (elemento assinatura) */
-.kpi-gauge { margin-top: 10px; height: 6px; border-radius: 4px; background: #EDEFF3; position: relative; overflow: hidden; }
-.kpi-gauge-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--verde), var(--ambar), var(--vermelho)); }
-.kpi-gauge-marker { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--navy-900); }
-
 /* ===================== PAINÉIS / TABELAS ===================== */
 .painel-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; }
 @media (max-width: 1080px) { .painel-grid { grid-template-columns: 1fr; } }
@@ -220,6 +190,21 @@ button, input, select {
 .painel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .painel-header h3 { margin: 0; font-size: 15px; font-weight: 700; }
 .painel-header select { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 13px; }
+
+/* ===================== ANOTAÇÕES DO DIA ===================== */
+.anotacoes-status { font-size: 12px; color: var(--texto-fraco); }
+.anotacoes-status.salvando { color: var(--ambar, #C98A0A); }
+.anotacoes-status.salvo { color: var(--verde); font-weight: 600; }
+.anotacoes-textarea {
+  width: 100%; min-height: 110px; resize: vertical;
+  border: 1px solid var(--borda); border-radius: 8px;
+  padding: 12px 14px; font-size: 13.5px; font-family: inherit; color: var(--texto-forte, #1c2430);
+  box-sizing: border-box; line-height: 1.5;
+}
+.anotacoes-textarea:focus { outline: none; border-color: var(--azul-acao); box-shadow: 0 0 0 3px rgba(39,166,89,.12); }
+.anotacoes-textarea:disabled { background: #F6F7F9; color: var(--texto-fraco); }
+.anotacoes-rodape { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+.anotacoes-contador { font-size: 11.5px; color: var(--texto-fraco); }
 
 .tabela-wrap { overflow-x: auto; }
 .tabela { width: 100%; border-collapse: collapse; font-size: 13.5px; }
@@ -328,7 +313,117 @@ button, input, select {
   background: #EEF1F5; padding: 4px 10px; border-radius: 20px;
 }
 
-/* ===================== HISTÓRICO ===================== */
+/* ===================== LANÇAMENTO: preço + botão "Puxado" ===================== */
+.cel-precos { padding: 6px 8px !important; min-width: 150px; }
+.preco-puxado-wrap { display: flex; flex-direction: column; gap: 6px; }
+.preco-linha { display: flex; align-items: center; gap: 6px; }
+.tabela-lancamento .preco-linha input[type="number"] { width: 88px; }
+
+.btn-puxado {
+  border: 1px solid var(--borda);
+  background: #fff;
+  color: var(--texto-suave);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 9px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.btn-puxado:hover { background: #F3F5F8; }
+.btn-puxado-badge { font-size: 12px; line-height: 1; }
+.btn-puxado-badge::before { content: ""; }
+
+.preco-puxado-wrap[data-estado="igual"] .btn-puxado {
+  background: rgba(15,157,88,.1); border-color: var(--verde); color: var(--verde);
+}
+.preco-puxado-wrap[data-estado="igual"] .btn-puxado-badge::before { content: "✓"; }
+
+.preco-puxado-wrap[data-estado="diferente"] .btn-puxado {
+  background: rgba(227,160,8,.12); border-color: var(--ambar); color: #8A6100;
+}
+.preco-puxado-wrap[data-estado="diferente"] .btn-puxado-badge::before { content: "≠"; }
+
+.preco-puxado-wrap[data-estado="pergunta"] .btn-puxado {
+  background: var(--navy-800); border-color: var(--navy-800); color: #fff;
+}
+
+.puxado-pergunta, .puxado-valor { display: none; }
+.preco-puxado-wrap[data-estado="pergunta"] .puxado-pergunta {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 11.5px; color: var(--texto-suave); background: #F3F5F8;
+  border-radius: 8px; padding: 6px 8px;
+}
+.preco-puxado-wrap[data-estado="diferente"] .puxado-valor { display: block; }
+.puxado-valor input { width: 100%; border-color: var(--ambar); background: #FFFBF0; }
+
+.btn-mini {
+  border: none; border-radius: 14px; padding: 3px 10px; font-size: 11px; font-weight: 700;
+  cursor: pointer; background: var(--verde); color: #fff;
+}
+.btn-mini-alt { background: #fff; color: var(--texto-suave); border: 1px solid var(--borda); }
+.btn-mini:hover { opacity: .88; }
+
+.linha-produto-destaque > td:first-child { border-left: 3px solid var(--ambar); }
+.mini-tag-destaque {
+  display: inline-block; margin-left: 8px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--ambar);
+  background: rgba(227,160,8,.14); padding: 2px 7px; border-radius: 20px; vertical-align: middle;
+}
+
+/* ===================== COMPARATIVO: diferença dia × puxado ===================== */
+.diferenca-boa { color: var(--verde); font-weight: 600; font-family: var(--fonte-mono); font-size: 13px; }
+.diferenca-ruim { color: var(--vermelho); font-weight: 600; font-family: var(--fonte-mono); font-size: 13px; }
+
+/* ===================== DESTAQUES (S10 / S500) ===================== */
+.destaque-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.destaque-grid:empty { display: none; margin: 0; }
+.destaque-card {
+  background: linear-gradient(160deg, var(--navy-900), var(--navy-800) 65%, var(--navy-700));
+  border-radius: var(--raio);
+  padding: 16px 18px;
+  color: #fff;
+  box-shadow: var(--sombra);
+  position: relative;
+  overflow: hidden;
+}
+.destaque-card::before {
+  content: "";
+  position: absolute; top: -30px; right: -30px; width: 90px; height: 90px;
+  border-radius: 50%; background: rgba(255,255,255,.06);
+}
+.destaque-tag {
+  display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--ambar); background: rgba(227,160,8,.16);
+  padding: 3px 9px; border-radius: 20px;
+}
+.destaque-valor {
+  font-family: var(--fonte-mono); font-size: 26px; font-weight: 700; margin-top: 10px;
+}
+.destaque-sub { font-size: 12.5px; color: rgba(255,255,255,.7); margin-top: 3px; display: flex; align-items: center; }
+.destaque-diff { font-size: 12px; margin-top: 8px; font-weight: 600; }
+.destaque-diff.boa { color: #6EE7A8; }
+.destaque-diff.ruim { color: #FF9B92; }
+.destaque-card.destaque-vazio {
+  background: var(--cartao); color: var(--texto-fraco); border: 1px dashed var(--borda); box-shadow: none;
+}
+.destaque-card.destaque-vazio .destaque-tag { color: var(--texto-suave); background: #EEF1F5; }
+.destaque-vazio-texto { margin: 10px 0 0; font-size: 13px; }
+
+/* ===================== HISTÓRICO: gráfico de evolução do período ===================== */
+.painel-grafico-historico { margin-bottom: 16px; }
+.grafico-historico-wrap { position: relative; width: 100%; height: 180px; }
+@media (max-width: 640px) { .grafico-historico-wrap { height: 150px; } }
+
 .painel-filtros {
   background: var(--cartao);
   border: 1px solid var(--borda);
@@ -504,12 +599,10 @@ button, input, select {
   .filtro-data { width: 100%; }
   .filtro-data input { width: 100%; }
 
-  .kpi-grid { grid-template-columns: 1fr; gap: 10px; }
-  .kpi-card { padding: 14px 16px; }
-  .kpi-valor { font-size: 20px; }
-
   .painel { padding: 14px 14px 16px; border-radius: 8px; }
   .painel-header { flex-wrap: wrap; gap: 8px; }
+  .anotacoes-rodape { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .anotacoes-rodape .btn { width: 100%; }
 
   .tabela { font-size: 12.5px; }
   .tabela th, .tabela td { padding: 7px 8px; }
@@ -599,7 +692,6 @@ button, input, select {
 
 /* ---------- Telas bem pequenas (até 380px) ---------- */
 @media (max-width: 380px) {
-  .kpi-grid { grid-template-columns: 1fr; }
   .login-card { padding: 24px 18px 18px; }
   .login-brand h1 { font-size: 17px; }
 }
