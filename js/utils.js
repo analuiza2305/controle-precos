@@ -32,6 +32,11 @@ export function formatarPreco(valor) {
   return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 3, maximumFractionDigits: 3 });
 }
 
+export function formatarLitros(valor) {
+  if (valor === null || valor === undefined || isNaN(valor)) return "-";
+  return `${Number(valor).toLocaleString("pt-BR")} L`;
+}
+
 export function toast(mensagem, tipo = "normal") {
   const container = document.getElementById("toast-container");
   const el = document.createElement("div");
@@ -61,6 +66,44 @@ export function confirmar(texto) {
 
     btnOk.addEventListener("click", onOk);
     btnCancelar.addEventListener("click", onCancelar);
+  });
+}
+
+// Popup simples de texto livre (ex.: motivo/observação de uma puxada).
+// Retorna a string digitada, ou null se o usuário cancelar.
+export function pedirTexto(titulo, valorInicial = "") {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("modal-motivo");
+    const tituloEl = document.getElementById("modal-motivo-titulo");
+    const inputEl = document.getElementById("modal-motivo-input");
+    const btnOk = document.getElementById("modal-motivo-salvar");
+    const btnCancelar = document.getElementById("modal-motivo-cancelar");
+    tituloEl.textContent = titulo;
+    inputEl.value = valorInicial;
+    modal.classList.remove("oculto");
+    setTimeout(() => inputEl.focus(), 50);
+
+    function limpar(resultado) {
+      modal.classList.add("oculto");
+      btnOk.removeEventListener("click", onOk);
+      btnCancelar.removeEventListener("click", onCancelar);
+      inputEl.removeEventListener("keydown", onKeydown);
+      resolve(resultado);
+    }
+    function onOk() {
+      const valor = inputEl.value.trim();
+      if (!valor) { inputEl.focus(); return; }
+      limpar(valor);
+    }
+    function onCancelar() { limpar(null); }
+    function onKeydown(e) {
+      if (e.key === "Enter") { e.preventDefault(); onOk(); }
+      if (e.key === "Escape") { e.preventDefault(); onCancelar(); }
+    }
+
+    btnOk.addEventListener("click", onOk);
+    btnCancelar.addEventListener("click", onCancelar);
+    inputEl.addEventListener("keydown", onKeydown);
   });
 }
 

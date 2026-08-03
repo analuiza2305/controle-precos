@@ -1,8 +1,8 @@
 import { aoLogar } from "./auth.js";
 import { iniciarFornecedores } from "./fornecedores.js";
 import { iniciarProdutos } from "./produtos.js";
-import { montarComparativo, carregarHistorico } from "./cotacoes.js";
-import { montarDashboard } from "./dashboard.js";
+import { montarComparativo, carregarHistorico } from "./cotacoes-novo.js";
+import { montarDashboard } from "./dashboard-novo.js";
 import { souVendedor } from "./auth.js";
 
 const navItens = document.querySelectorAll(".nav-item");
