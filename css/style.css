@@ -809,6 +809,11 @@ button, input, select {
 .modo-visualizador .btn-remover-puxada { display: none !important; }
 .modo-visualizador .aviso-visualizacao { display: flex !important; }
 
+/* Vendedor: acessa a tela de Puxadas, mas só pra visualizar (nunca lançar/editar/excluir) */
+.modo-vendedor #btn-salvar-puxadas,
+.modo-vendedor #puxada-aviso { display: none !important; }
+.puxada-vazia { color: var(--texto-fraco); }
+
 .aviso-visualizacao {
   display: none;
   align-items: center; gap: 8px;

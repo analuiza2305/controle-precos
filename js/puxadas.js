@@ -5,6 +5,7 @@ import {
 import { fornecedores, fornecedoresAtivos, aoAtualizarFornecedores } from "./fornecedores.js";
 import { produtos, aoAtualizarProdutos } from "./produtos.js";
 import { buscarCotacoesPorData } from "./cotacoes-novo.js";
+import { souVendedor } from "./auth.js";
 import {
   toast, confirmar, pedirTexto, formatarData, formatarPreco, formatarLitros, hojeISO, corFornecedor,
   diferencaPreco, formatarPercentual, ehProdutoDestaque
@@ -282,7 +283,7 @@ async function montarGradePuxadas() {
             <div class="puxadas-container" data-produto="${p.id}" data-fornecedor="${f.id}">
               <div class="puxadas-lista puxadas-lista-ativa">
                 ${renderLinhasPuxadas(puxadas)}
-                <button type="button" class="btn-add-puxada-nova" data-acao="add-puxada-nova">+ Adicionar puxada</button>
+                ${souVendedor() ? "" : `<button type="button" class="btn-add-puxada-nova" data-acao="add-puxada-nova">+ Adicionar puxada</button>`}
               </div>
             </div>
           </td>`;
@@ -293,7 +294,11 @@ async function montarGradePuxadas() {
 }
 
 function renderLinhasPuxadas(puxadas) {
-  if (!puxadas || puxadas.length === 0) return renderLinhaPuxada(null);
+  if (!puxadas || puxadas.length === 0) {
+    return souVendedor()
+      ? `<span class="puxada-vazia">—</span>`
+      : renderLinhaPuxada(null);
+  }
   return puxadas.map((p) => renderLinhaPuxada(p)).join("");
 }
 
@@ -302,25 +307,29 @@ function escapeAttr(txt) {
 }
 
 function renderLinhaPuxada(p) {
+  // Vendedor só visualiza: sem linha em branco pra puxada nova, sem controles de edição.
+  if (souVendedor() && !p) return "";
+
   const preco = p && p.preco !== null && p.preco !== undefined ? p.preco : "";
   const litros = p && p.volumeLitros !== null && p.volumeLitros !== undefined ? p.volumeLitros : "";
   const justificativa = p && p.justificativa ? p.justificativa : "";
   const idPux = p?.id || "";
   const temMotivo = justificativa.trim() !== "";
+  const somenteLeitura = souVendedor();
 
   return `<div class="puxada-linha" data-puxada-id="${idPux}" data-justificativa="${escapeAttr(justificativa)}">
     <div class="puxada-linha-topo">
-      <button type="button" class="btn-icone-linha btn-obs-puxada ${temMotivo ? "tem-motivo" : ""}" data-acao="editar-motivo" title="${temMotivo ? "Ver/editar motivo" : "Adicionar motivo"}">📝</button>
-      ${idPux ? `<button type="button" class="btn-icone-linha btn-remover-puxada" data-acao="remover-puxada" title="Remover puxada">✕</button>` : ""}
+      <button type="button" class="btn-icone-linha btn-obs-puxada ${temMotivo ? "tem-motivo" : ""}" data-acao="editar-motivo" title="${temMotivo ? "Ver/editar motivo" : "Adicionar motivo"}" ${somenteLeitura ? "disabled" : ""}>📝</button>
+      ${idPux && !somenteLeitura ? `<button type="button" class="btn-icone-linha btn-remover-puxada" data-acao="remover-puxada" title="Remover puxada">✕</button>` : ""}
     </div>
     <div class="puxada-campos-linha">
       <div class="campo-puxada">
         <span class="campo-label">Preço (R$/L)</span>
-        <input type="number" step="0.001" min="0" placeholder="Ex.: 5,85" data-campo="preco" class="input-puxada-preco" value="${preco}">
+        <input type="number" step="0.001" min="0" placeholder="Ex.: 5,85" data-campo="preco" class="input-puxada-preco" value="${preco}" ${somenteLeitura ? "readonly disabled" : ""}>
       </div>
       <div class="campo-puxada">
         <span class="campo-label">Litros</span>
-        <input type="number" step="1" min="0" placeholder="Ex.: 2000" data-campo="litros" class="input-puxada-litros" value="${litros}">
+        <input type="number" step="1" min="0" placeholder="Ex.: 2000" data-campo="litros" class="input-puxada-litros" value="${litros}" ${somenteLeitura ? "readonly disabled" : ""}>
       </div>
     </div>
   </div>`;
@@ -370,6 +379,8 @@ function coletarPuxadasDeContainer(container) {
 
 if (tbody) {
   tbody.addEventListener("click", async (e) => {
+    if (souVendedor()) return; // vendedor só visualiza puxadas
+
     const btnAdd = e.target.closest('[data-acao="add-puxada-nova"]');
     if (btnAdd) {
       const container = btnAdd.closest(".puxadas-container");
@@ -415,6 +426,7 @@ if (tbody) {
 
   // O auto-save não reconstrói a tabela inteira, evitando perda de foco
   tbody.addEventListener("blur", async (e) => {
+    if (souVendedor()) return; // vendedor só visualiza puxadas
     if (!e.target.matches('input[data-campo]')) return;
     const linha = e.target.closest(".puxada-linha");
     const container = e.target.closest(".puxadas-container");
@@ -450,6 +462,7 @@ if (tbody) {
 
 if (btnSalvarTudo) {
   btnSalvarTudo.addEventListener("click", async () => {
+    if (souVendedor()) return; // vendedor só visualiza puxadas
     const containers = [...tbody.querySelectorAll(".puxadas-container")];
     const data = inputData.value || hojeISO();
     btnSalvarTudo.disabled = true;
