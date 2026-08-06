@@ -56,6 +56,18 @@ aoLogar(() => {
   )?.remove();
 
   document.querySelector(
+    '[data-view="puxadas"]'
+  )?.remove();
+
+  document.querySelector(
+    '[data-view="comparativo"]'
+  )?.remove();
+
+  document.querySelector(
+    '[data-view="historico"]'
+  )?.remove();
+
+  document.querySelector(
     '[data-view="fornecedores"]'
   )?.remove();
 

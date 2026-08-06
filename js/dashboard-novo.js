@@ -2,24 +2,19 @@ import { db, auth } from "./firebase-config.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { produtos, aoAtualizarProdutos } from "./produtos.js";
 import { aoAtualizarFornecedores } from "./fornecedores.js";
-import { buscarCotacoesPorData, buscarCotacoesRecentes, nomeFornecedor, nomeProduto } from "./cotacoes-novo.js";
-import { buscarPuxadasPorData, resumoPuxadas, buscarPuxadasRecentes } from "./puxadas.js";
-import { formatarPreco, formatarLitros, hojeISO, diferencaPreco, formatarPercentual, ehProdutoDestaque, toast, debounce } from "./utils.js";
+import { buscarCotacoesPorData, nomeProduto } from "./cotacoes-novo.js";
+import { buscarPuxadasPorData } from "./puxadas.js";
+import { formatarPreco, hojeISO, toast, debounce } from "./utils.js";
+import { souVendedor } from "./auth.js";
 
 const inputData = document.getElementById("dash-data");
 const destaqueGrid = document.getElementById("destaque-grid");
-const tabelaMelhoresHoje = document.querySelector("#tabela-melhores-hoje tbody");
-const selectProdutoEvolucao = document.getElementById("dash-produto-evolucao");
-let grafico = null;
 
 if (inputData) {
   inputData.value = hojeISO();
   inputData.addEventListener("change", montarDashboard);
-  selectProdutoEvolucao.addEventListener("change", montarGraficoEvolucao);
+  
   aoAtualizarProdutos(() => {
-    const atual = selectProdutoEvolucao.value;
-    selectProdutoEvolucao.innerHTML = produtos.map((p) => `<option value="${p.id}">${p.nome}</option>`).join("");
-    if (atual) selectProdutoEvolucao.value = atual;
     montarDashboard();
   });
   aoAtualizarFornecedores(montarDashboard);
@@ -30,28 +25,31 @@ export async function montarDashboard() {
   const cotacoes = await buscarCotacoesPorData(data);
   const puxadas = await buscarPuxadasPorData(data);
   
-  // Atualiza painel de totais e fornecedores das puxadas
-  const totalLitros = puxadas.reduce((acc, p) => acc + (p.volumeLitros || 0), 0);
-  const elTotalLitros = document.getElementById("total-litros-puxados");
-  if (elTotalLitros) elTotalLitros.textContent = formatarLitros(totalLitros);
-
-  const fornecedoresPuxada = [...new Set(puxadas.map(p => nomeFornecedor(p.fornecedorId)))].join(", ");
-  const elFornecedor = document.getElementById("fornecedor-da-puxada");
-  if (elFornecedor) elFornecedor.textContent = fornecedoresPuxada || "Nenhuma registrada";
-
-  montarDestaques(cotacoes, puxadas, data);
-  montarTabelaMelhoresHoje(cotacoes, puxadas);
-  montarGraficoEvolucao();
+  // Vendedor: mostrar apenas preços do dia
+  montarPrecosDia(cotacoes);
+  
+  // Vendedor: mostrar apenas suas puxadas de forma simplificada
+  if (souVendedor()) {
+    montarPuxadasVendedor(puxadas);
+  }
+  
   carregarAnotacao(data);
 }
 
-function montarDestaques(cotacoes, puxadas, data) {
+// ============================================================
+// PREÇOS DO DIA (Cards simples)
+// ============================================================
+function montarPrecosDia(cotacoes) {
   if (!destaqueGrid) return;
-  const produtosDestaque = produtos.filter((p) => ehProdutoDestaque(p.nome));
-  if (produtosDestaque.length === 0) { destaqueGrid.innerHTML = ""; return; }
+  
+  if (produtos.length === 0) {
+    destaqueGrid.innerHTML = "";
+    return;
+  }
 
-  destaqueGrid.innerHTML = produtosDestaque.map((p) => {
+  destaqueGrid.innerHTML = produtos.map((p) => {
     const doProduto = cotacoes.filter((c) => c.produtoId === p.id && c.preco !== null && c.preco !== undefined);
+    
     if (doProduto.length === 0) {
       return `<div class="destaque-card destaque-vazio">
         <span class="destaque-tag">${p.nome}</span>
@@ -60,116 +58,55 @@ function montarDestaques(cotacoes, puxadas, data) {
     }
     
     const melhor = doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0]);
-    const puxadasDesseProduto = puxadas.filter((pux) => pux.produtoId === p.id);
-    const resumo = resumoPuxadas(puxadasDesseProduto);
-    const diff = diferencaPreco(melhor.preco, resumo?.menor ?? null);
     
     return `<div class="destaque-card">
       <span class="destaque-tag">${p.nome}</span>
       <div class="destaque-valor">${formatarPreco(melhor.preco)}</div>
-      <div class="destaque-sub">${nomeFornecedor(melhor.fornecedorId)}</div>
-      ${diff ? `<div class="destaque-diff ${diff.valor <= 0 ? "boa" : "ruim"}">vs. puxado: ${formatarPreco(diff.valor)} (${formatarPercentual(diff.percentual)})</div>` : ""}
-      ${resumo?.volumeTotal ? `<div class="destaque-sub">Total puxado: ${formatarLitros(resumo.volumeTotal)}</div>` : ""}
+      <div class="destaque-sub">Preço do dia</div>
     </div>`;
   }).join("");
 }
 
-function montarTabelaMelhoresHoje(cotacoes, puxadas) {
-  if (!tabelaMelhoresHoje) return;
-  if (produtos.length === 0) {
-    tabelaMelhoresHoje.innerHTML = `<tr><td colspan="5" style="color:var(--texto-fraco)">Cadastre produtos para ver este ranking.</td></tr>`;
+// ============================================================
+// MINHAS PUXADAS (Tabela simplificada: só Produto + Preço)
+// ============================================================
+function montarPuxadasVendedor(puxadas) {
+  // Tabela simplificada no dashboard
+  const tabelaPuxadas = document.querySelector("#minhas-puxadas-tbody");
+  
+  if (!tabelaPuxadas) return;
+
+  if (puxadas.length === 0) {
+    tabelaPuxadas.innerHTML = `<tr><td colspan="2" style="color:var(--texto-fraco); text-align:center; padding:20px;">Nenhuma puxada registrada neste dia</td></tr>`;
     return;
   }
-  
-  const linhas = produtos.map((p) => {
-    const doProduto = cotacoes.filter((c) => c.produtoId === p.id && c.preco !== null && c.preco !== undefined);
-    if (doProduto.length === 0) {
-      return `<tr><td data-label="Produto">${p.nome}</td><td colspan="4" style="color:var(--texto-fraco)">Sem cotação hoje</td></tr>`;
+
+  // Agrupa puxadas por produto (para mostrar melhor)
+  const porProduto = {};
+  puxadas.forEach(pux => {
+    const nomeProd = nomeProduto(pux.produtoId);
+    if (!porProduto[nomeProd]) {
+      porProduto[nomeProd] = [];
     }
+    porProduto[nomeProd].push(pux);
+  });
+
+  // Renderiza tabela simplificada: Produto | Preço Puxado
+  const linhas = Object.entries(porProduto).map(([nomeProd, puxadasProd]) => {
+    // Pega a primeira puxada deste produto (ou agrupa se houver várias)
+    const precoMedio = puxadasProd.reduce((acc, p) => acc + (p.preco || 0), 0) / puxadasProd.length;
     
-    const melhor = doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0]);
-    const puxadasDesseProduto = puxadas.filter((pux) => pux.produtoId === p.id);
-    const resumo = resumoPuxadas(puxadasDesseProduto);
-    const diff = diferencaPreco(melhor.preco, resumo?.referencia ?? null);
-    const diffHtml = diff
-      ? `<span style="color:${diff.valor <= 0 ? "var(--verde)" : "var(--vermelho)"}">${formatarPreco(diff.valor)} (${formatarPercentual(diff.percentual)})</span>`
-      : `<span style="color:var(--texto-fraco)">—</span>`;
-    
-    return `<tr class="linha-melhor">
-      <td data-label="Produto"><strong>${p.nome}</strong></td>
-      <td data-label="Melhor fornecedor">${nomeFornecedor(melhor.fornecedorId)}</td>
-      <td class="preco" data-label="Preço do dia">${formatarPreco(melhor.preco)}</td>
-      <td class="preco" data-label="Preço puxado">${formatarPreco(resumo?.referencia ?? null)}</td>
-      <td data-label="Dia × puxado">${diffHtml}</td>
+    return `<tr class="linha-puxada-vendedor">
+      <td data-label="Produto"><strong>${nomeProd}</strong></td>
+      <td data-label="Preço Puxado" class="preco"><strong>${formatarPreco(precoMedio)}</strong></td>
     </tr>`;
   }).join("");
-  
-  tabelaMelhoresHoje.innerHTML = linhas;
-}
 
-async function montarGraficoEvolucao() {
-  const produtoId = selectProdutoEvolucao.value;
-  const canvas = document.getElementById("grafico-evolucao");
-  if (!produtoId || !canvas) {
-    if (grafico) { grafico.destroy(); grafico = null; }
-    return;
-  }
-  
-  const todas = await buscarCotacoesRecentes(3000);
-  const puxadasTodas = await buscarPuxadasRecentes(3000);
-  
-  const doProduto = todas.filter((c) => c.produtoId === produtoId && c.preco !== null && c.preco !== undefined);
-  const puxadasProduto = puxadasTodas.filter(p => p.produtoId === produtoId && p.preco !== null);
-
-  const porData = {};
-  doProduto.forEach((c) => {
-    if (!porData[c.data]) porData[c.data] = [];
-    porData[c.data].push(c.preco);
-  });
-  
-  const puxadasPorData = {};
-  puxadasProduto.forEach(p => {
-    if (!puxadasPorData[p.data]) puxadasPorData[p.data] = [];
-    puxadasPorData[p.data].push(p.preco);
-  });
-  
-  const datasOrdenadas = Object.keys(porData).sort().slice(-30);
-  const melhores = datasOrdenadas.map((d) => Math.min(...porData[d]));
-  const medias = datasOrdenadas.map((d) => porData[d].reduce((a, b) => a + b, 0) / porData[d].length);
-  
-  // Adiciona a linha de Puxadas (Média)
-  const mediaPuxadas = datasOrdenadas.map(d => {
-    if (!puxadasPorData[d] || puxadasPorData[d].length === 0) return null;
-    return puxadasPorData[d].reduce((a, b) => a + b, 0) / puxadasPorData[d].length;
-  });
-
-  const labels = datasOrdenadas.map((d) => d.split("-").reverse().slice(0, 2).join("/"));
-
-  if (grafico) grafico.destroy();
-  grafico = new Chart(canvas.getContext("2d"), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [
-        { label: "Melhor preço", data: melhores, borderColor: "#0F9D58", backgroundColor: "rgba(15,157,88,.1)", tension: .25, fill: true, pointRadius: 3 },
-        { label: "Média de mercado", data: medias, borderColor: "#1D5F91", backgroundColor: "rgba(29,95,145,.06)", borderDash: [5, 4], tension: .25, fill: true, pointRadius: 2 },
-        { label: "Puxadas (Média)", data: mediaPuxadas, borderColor: "#FF9800", backgroundColor: "transparent", borderDash: [2, 2], tension: .25, fill: false, pointRadius: 3 }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } } },
-      scales: {
-        y: { ticks: { callback: (v) => "R$ " + v.toFixed(2) } },
-        x: { grid: { display: false } }
-      },
-      spanGaps: true // Conecta os pontos mesmo se não houver puxada em um dia
-    }
-  });
+  tabelaPuxadas.innerHTML = linhas;
 }
 
 // ============================================================
-// ANOTAÇÕES DO DIA
+// OBSERVAÇÕES DO DIA
 // ============================================================
 const textareaAnotacoes = document.getElementById("dash-anotacoes");
 const anotacoesStatus = document.getElementById("anotacoes-status");
