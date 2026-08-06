@@ -3,7 +3,7 @@ import { iniciarFornecedores } from "./fornecedores.js";
 import { iniciarProdutos } from "./produtos.js";
 import { montarComparativo, carregarHistorico } from "./cotacoes-novo.js";
 import { montarDashboard } from "./dashboard-novo.js";
-import { souVendedor } from "./auth.js";
+import { souVendedor, souEditor, papelUsuario } from "./auth.js";
 
 const navItens = document.querySelectorAll(".nav-item");
 const views = document.querySelectorAll(".view");
@@ -49,31 +49,22 @@ aoLogar(() => {
   iniciarProdutos();
   montarDashboard();
 
-  if (souVendedor()) {
+  const papel = papelUsuario();
 
-  document.querySelector(
-    '[data-view="lancamento"]'
-  )?.remove();
+  // ✅ LÓGICA CORRIGIDA: 
+  // - Editor: vê TUDO
+  // - Vendedor: vê APENAS dashboard
+  // - Visualizador: vê APENAS dashboard
+  
+  if (papel === "vendedor" || papel === "visualizador") {
+    // Vendedor e Visualizador só veem o dashboard - remove tudo mais
+    document.querySelector('[data-view="lancamento"]')?.remove();
+    document.querySelector('[data-view="puxadas"]')?.remove();
+    document.querySelector('[data-view="comparativo"]')?.remove();
+    document.querySelector('[data-view="historico"]')?.remove();
+    document.querySelector('[data-view="fornecedores"]')?.remove();
+    document.querySelector('[data-view="produtos"]')?.remove();
+  }
+  // Se for editor, vê tudo - nenhuma view é removida
 
-  document.querySelector(
-    '[data-view="puxadas"]'
-  )?.remove();
-
-  document.querySelector(
-    '[data-view="comparativo"]'
-  )?.remove();
-
-  document.querySelector(
-    '[data-view="historico"]'
-  )?.remove();
-
-  document.querySelector(
-    '[data-view="fornecedores"]'
-  )?.remove();
-
-  document.querySelector(
-    '[data-view="produtos"]'
-  )?.remove();
-
-}
 });
