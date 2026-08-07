@@ -809,6 +809,17 @@ button, input, select {
 .modo-visualizador .btn-remover-puxada { display: none !important; }
 .modo-visualizador .aviso-visualizacao { display: flex !important; }
 
+/* Cor do produto: campo de escolha (Editor) x selo somente leitura (demais perfis) */
+.input-cor-produto {
+  width: 34px; height: 28px; padding: 2px; border: 1px solid var(--borda);
+  border-radius: 6px; background: transparent; cursor: pointer;
+}
+.cor-produto-somente-leitura {
+  display: none; width: 18px; height: 18px; border-radius: 50%;
+  border: 1px solid rgba(0,0,0,.15);
+}
+.modo-visualizador .cor-produto-somente-leitura { display: inline-block; }
+
 .aviso-visualizacao {
   display: none;
   align-items: center; gap: 8px;
@@ -996,8 +1007,7 @@ button, input, select {
 }
 
 /* ===================== MODO VENDEDOR ===================== */
-/* Ocultar painel de resumo (Total litros + Fornecedor) */
-.modo-vendedor #view-dashboard > .painel:first-of-type { display: none !important; }
+/* Painel de resumo (Total litros + Fornecedor + Preço puxado) aparece para todos os perfis */
 
 /* Ocultar grid com tabela de melhores preços + gráfico */
 .modo-vendedor .painel-grid { display: none !important; }

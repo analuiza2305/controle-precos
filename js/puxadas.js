@@ -3,7 +3,7 @@ import {
   collection, doc, setDoc, deleteDoc, getDocs, query, where, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { fornecedores, fornecedoresAtivos, aoAtualizarFornecedores } from "./fornecedores.js";
-import { produtos, aoAtualizarProdutos } from "./produtos.js";
+import { produtos, aoAtualizarProdutos, corProduto } from "./produtos.js";
 import { buscarCotacoesPorData } from "./cotacoes-novo.js";
 import {
   toast, confirmar, pedirTexto, formatarData, formatarPreco, formatarLitros, hojeISO, corFornecedor,
@@ -260,10 +260,10 @@ async function montarGradePuxadas() {
         : null;
 
       return `
-      <tr data-linha-produto="${p.id}" ${destaque ? 'class="linha-produto-destaque"' : ""}>
+      <tr data-linha-produto="${p.id}" ${destaque ? 'class="linha-produto-destaque"' : ""} style="border-left:4px solid ${corProduto(p)}">
         <td class="celula-produto-info">
           <div class="produto-nome-linha">
-            <strong>${p.nome}</strong>${destaque ? '<span class="mini-tag-destaque">Destaque</span>' : ""}
+            <span class="fornecedor-dot" style="background:${corProduto(p)}"></span><strong>${p.nome}</strong>${destaque ? '<span class="mini-tag-destaque">Destaque</span>' : ""}
           </div>
           <div class="produto-info-extra">
             <div class="produto-info-item">

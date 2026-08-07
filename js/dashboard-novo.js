@@ -1,20 +1,37 @@
 import { db, auth } from "./firebase-config.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { produtos, aoAtualizarProdutos } from "./produtos.js";
-import { aoAtualizarFornecedores } from "./fornecedores.js";
-import { buscarCotacoesPorData, nomeProduto } from "./cotacoes-novo.js";
-import { buscarPuxadasPorData } from "./puxadas.js";
-import { formatarPreco, hojeISO, toast, debounce } from "./utils.js";
+import { produtos, aoAtualizarProdutos, corProduto } from "./produtos.js";
+import { fornecedores, aoAtualizarFornecedores } from "./fornecedores.js";
+import { buscarCotacoesPorData, buscarCotacoesRecentes, nomeFornecedor, nomeProduto } from "./cotacoes-novo.js";
+import { buscarPuxadasPorData, buscarPuxadasRecentes, resumoPuxadas } from "./puxadas.js";
+import { formatarPreco, formatarLitros, hojeISO, diferencaPreco, formatarPercentual, toast, debounce } from "./utils.js";
 import { souVendedor } from "./auth.js";
 
 const inputData = document.getElementById("dash-data");
 const destaqueGrid = document.getElementById("destaque-grid");
+const tabelaMelhoresHoje = document.querySelector("#tabela-melhores-hoje tbody");
+const selectProdutoEvolucao = document.getElementById("dash-produto-evolucao");
+const totalLitrosPuxadosEl = document.getElementById("total-litros-puxados");
+const fornecedorDaPuxadaEl = document.getElementById("fornecedor-da-puxada");
+const precoDaPuxadaEl = document.getElementById("preco-da-puxada");
+let grafico = null;
 
 if (inputData) {
   inputData.value = hojeISO();
   inputData.addEventListener("change", montarDashboard);
-  
+
+  if (selectProdutoEvolucao) {
+    selectProdutoEvolucao.addEventListener("change", montarGraficoEvolucao);
+  }
+
   aoAtualizarProdutos(() => {
+    if (selectProdutoEvolucao) {
+      const atual = selectProdutoEvolucao.value;
+      selectProdutoEvolucao.innerHTML = produtos.map((p) => `<option value="${p.id}">${p.nome}</option>`).join("");
+      if (atual && produtos.some((p) => p.id === atual)) {
+        selectProdutoEvolucao.value = atual;
+      }
+    }
     montarDashboard();
   });
   aoAtualizarFornecedores(montarDashboard);
@@ -23,16 +40,23 @@ if (inputData) {
 export async function montarDashboard() {
   const data = inputData.value || hojeISO();
   const cotacoes = await buscarCotacoesPorData(data);
+
   const puxadas = await buscarPuxadasPorData(data);
-  
-  // Vendedor: mostrar apenas preços do dia
+
+  // Cards de preço do dia (S10/S500) e resumo de puxadas (litros/fornecedor/preço)
+  // aparecem para todos os perfis.
   montarPrecosDia(cotacoes);
-  
-  // Vendedor: mostrar apenas suas puxadas de forma simplificada
+  montarResumoPuxadas(puxadas);
+
   if (souVendedor()) {
+    // Vendedor: só a tabela simplificada de puxadas do dia.
     montarPuxadasVendedor(puxadas);
+  } else {
+    // Editor / visualizador: painel completo (ranking + gráfico).
+    montarTabelaMelhoresHoje(cotacoes, puxadas);
+    montarGraficoEvolucao();
   }
-  
+
   carregarAnotacao(data);
 }
 
@@ -41,7 +65,7 @@ export async function montarDashboard() {
 // ============================================================
 function montarPrecosDia(cotacoes) {
   if (!destaqueGrid) return;
-  
+
   if (produtos.length === 0) {
     destaqueGrid.innerHTML = "";
     return;
@@ -49,18 +73,18 @@ function montarPrecosDia(cotacoes) {
 
   destaqueGrid.innerHTML = produtos.map((p) => {
     const doProduto = cotacoes.filter((c) => c.produtoId === p.id && c.preco !== null && c.preco !== undefined);
-    
+
     if (doProduto.length === 0) {
-      return `<div class="destaque-card destaque-vazio">
-        <span class="destaque-tag">${p.nome}</span>
+      return `<div class="destaque-card destaque-vazio" style="border-top:3px solid ${corProduto(p)}">
+        <span class="destaque-tag"><span class="fornecedor-dot" style="background:${corProduto(p)}"></span>${p.nome}</span>
         <p class="destaque-vazio-texto">Sem cotação nesta data</p>
       </div>`;
     }
-    
+
     const melhor = doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0]);
-    
-    return `<div class="destaque-card">
-      <span class="destaque-tag">${p.nome}</span>
+
+    return `<div class="destaque-card" style="border-top:3px solid ${corProduto(p)}">
+      <span class="destaque-tag"><span class="fornecedor-dot" style="background:${corProduto(p)}"></span>${p.nome}</span>
       <div class="destaque-valor">${formatarPreco(melhor.preco)}</div>
       <div class="destaque-sub">Preço do dia</div>
     </div>`;
@@ -68,37 +92,168 @@ function montarPrecosDia(cotacoes) {
 }
 
 // ============================================================
-// MINHAS PUXADAS (Tabela simplificada: só Produto + Preço)
+// MELHOR PREÇO POR PRODUTO (HOJE)
 // ============================================================
-function montarPuxadasVendedor(puxadas) {
-  // Tabela simplificada no dashboard
-  const tabelaPuxadas = document.querySelector("#minhas-puxadas-tbody");
-  
-  if (!tabelaPuxadas) return;
+function montarTabelaMelhoresHoje(cotacoes, puxadas) {
+  if (!tabelaMelhoresHoje) return;
 
-  if (puxadas.length === 0) {
-    tabelaPuxadas.innerHTML = `<tr><td colspan="2" style="color:var(--texto-fraco); text-align:center; padding:20px;">Nenhuma puxada registrada neste dia</td></tr>`;
+  if (produtos.length === 0) {
+    tabelaMelhoresHoje.innerHTML = `<tr><td colspan="5" style="color:var(--texto-fraco)">Cadastre produtos para ver este ranking.</td></tr>`;
     return;
   }
 
-  // Agrupa puxadas por produto (para mostrar melhor)
-  const porProduto = {};
-  puxadas.forEach(pux => {
-    const nomeProd = nomeProduto(pux.produtoId);
-    if (!porProduto[nomeProd]) {
-      porProduto[nomeProd] = [];
+  const linhas = produtos.map((p) => {
+    const doProduto = cotacoes.filter((c) => c.produtoId === p.id && c.preco !== null && c.preco !== undefined);
+    if (doProduto.length === 0) {
+      return `<tr><td data-label="Produto">${p.nome}</td><td colspan="4" style="color:var(--texto-fraco)">Sem cotação hoje</td></tr>`;
     }
-    porProduto[nomeProd].push(pux);
+
+    // Melhor preço do dia (menor entre todos os fornecedores)
+    const melhor = doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0]);
+
+    // Melhor preço puxado do produto (menor entre todas as puxadas registradas)
+    const puxadasDoProduto = (puxadas || []).filter((pu) => pu.produtoId === p.id && pu.preco !== null && pu.preco !== undefined && !isNaN(pu.preco));
+    const melhorPuxado = puxadasDoProduto.length > 0 ? Math.min(...puxadasDoProduto.map((pu) => pu.preco)) : null;
+
+    const diff = diferencaPreco(melhor.preco, melhorPuxado);
+    const diffHtml = diff
+      ? `<span style="color:${diff.valor <= 0 ? "var(--verde)" : "var(--vermelho)"}">${formatarPreco(diff.valor)} (${formatarPercentual(diff.percentual)})</span>`
+      : `<span style="color:var(--texto-fraco)">—</span>`;
+
+    return `<tr class="linha-melhor">
+      <td data-label="Produto"><span class="fornecedor-dot" style="background:${corProduto(p)}"></span><strong>${p.nome}</strong></td>
+      <td data-label="Melhor fornecedor">${nomeFornecedor(melhor.fornecedorId)}</td>
+      <td class="preco" data-label="Preço do dia">${formatarPreco(melhor.preco)}</td>
+      <td class="preco" data-label="Preço puxado">${melhorPuxado !== null ? formatarPreco(melhorPuxado) : "—"}</td>
+      <td data-label="Dia × puxado">${diffHtml}</td>
+    </tr>`;
+  }).join("");
+
+  tabelaMelhoresHoje.innerHTML = linhas;
+}
+
+// ============================================================
+// EVOLUÇÃO DE PREÇOS (gráfico)
+// ============================================================
+async function montarGraficoEvolucao() {
+  if (!selectProdutoEvolucao) return;
+  const canvas = document.getElementById("grafico-evolucao");
+  if (!canvas) return;
+
+  const produtoId = selectProdutoEvolucao.value;
+  if (!produtoId) {
+    if (grafico) { grafico.destroy(); grafico = null; }
+    return;
+  }
+
+  const [todas, todasPuxadas] = await Promise.all([
+    buscarCotacoesRecentes(3000),
+    buscarPuxadasRecentes(3000)
+  ]);
+  const doProduto = todas.filter((c) => c.produtoId === produtoId && c.preco !== null && c.preco !== undefined);
+  const puxadasDoProduto = todasPuxadas.filter((p) => p.produtoId === produtoId && p.preco !== null && p.preco !== undefined && !isNaN(p.preco));
+
+  const porData = {};
+  doProduto.forEach((c) => {
+    if (!porData[c.data]) porData[c.data] = [];
+    porData[c.data].push(c.preco);
+  });
+  const porDataPuxada = {};
+  puxadasDoProduto.forEach((p) => {
+    if (!porDataPuxada[p.data]) porDataPuxada[p.data] = [];
+    porDataPuxada[p.data].push(p.preco);
   });
 
-  // Renderiza tabela simplificada: Produto | Preço Puxado
-  const linhas = Object.entries(porProduto).map(([nomeProd, puxadasProd]) => {
-    // Pega a primeira puxada deste produto (ou agrupa se houver várias)
-    const precoMedio = puxadasProd.reduce((acc, p) => acc + (p.preco || 0), 0) / puxadasProd.length;
-    
-    return `<tr class="linha-puxada-vendedor">
-      <td data-label="Produto"><strong>${nomeProd}</strong></td>
-      <td data-label="Preço Puxado" class="preco"><strong>${formatarPreco(precoMedio)}</strong></td>
+  const datasOrdenadas = Object.keys(porData).sort().slice(-30);
+  const melhores = datasOrdenadas.map((d) => Math.min(...porData[d]));
+  const medias = datasOrdenadas.map((d) => porData[d].reduce((a, b) => a + b, 0) / porData[d].length);
+  // Média das puxadas no mesmo dia (null quando não houve puxada, para não distorcer a linha)
+  const puxadasMedias = datasOrdenadas.map((d) => {
+    const valores = porDataPuxada[d];
+    if (!valores || valores.length === 0) return null;
+    return valores.reduce((a, b) => a + b, 0) / valores.length;
+  });
+  const labels = datasOrdenadas.map((d) => d.split("-").reverse().slice(0, 2).join("/"));
+
+  if (grafico) grafico.destroy();
+  grafico = new Chart(canvas.getContext("2d"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "Melhor preço", data: melhores, borderColor: "#0F9D58", backgroundColor: "rgba(15,157,88,.1)", tension: .25, fill: true, pointRadius: 3 },
+        { label: "Média de mercado", data: medias, borderColor: "#1D5F91", backgroundColor: "rgba(29,95,145,.06)", borderDash: [5, 4], tension: .25, fill: true, pointRadius: 2 },
+        { label: "Puxadas", data: puxadasMedias, borderColor: "#F2B705", backgroundColor: "rgba(242,183,5,.08)", tension: .25, fill: false, pointRadius: 3, spanGaps: true }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } } },
+      scales: {
+        y: { ticks: { callback: (v) => "R$ " + v.toFixed(2) } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ============================================================
+// RESUMO DE PUXADAS (Total de litros / fornecedor(es) da puxada)
+// ============================================================
+function montarResumoPuxadas(puxadas) {
+  if (!totalLitrosPuxadosEl || !fornecedorDaPuxadaEl) return;
+
+  const resumo = resumoPuxadas(puxadas);
+
+  totalLitrosPuxadosEl.textContent = resumo && resumo.volumeTotal
+    ? `${formatarLitros(resumo.volumeTotal)} L`
+    : "0 L";
+
+  if (precoDaPuxadaEl) {
+    precoDaPuxadaEl.textContent = resumo
+      ? formatarPreco(resumo.referencia)
+      : "-";
+  }
+
+  if (!puxadas || puxadas.length === 0) {
+    fornecedorDaPuxadaEl.textContent = "-";
+    return;
+  }
+
+  const idsFornecedores = [...new Set(puxadas.map((p) => p.fornecedorId))];
+  const nomes = idsFornecedores.map((id) => fornecedores.find((f) => f.id === id)?.nome || "—");
+  fornecedorDaPuxadaEl.textContent = nomes.join(", ") || "-";
+}
+
+// ============================================================
+// MINHAS PUXADAS (Tabela simplificada: Produto + Fornecedor + Litros + Preço)
+// ============================================================
+function montarPuxadasVendedor(puxadas) {
+  const tabelaPuxadas = document.querySelector("#minhas-puxadas-tbody");
+
+  if (!tabelaPuxadas) return;
+
+  if (!puxadas || puxadas.length === 0) {
+    tabelaPuxadas.innerHTML = `<tr><td colspan="4" style="color:var(--texto-fraco); text-align:center; padding:20px;">Nenhuma puxada registrada neste dia</td></tr>`;
+    return;
+  }
+
+  const nomeFornecedorLocal = (id) => fornecedores.find((f) => f.id === id)?.nome || "—";
+
+  const ordenadas = [...puxadas].sort((a, b) => {
+    const nomeA = nomeProduto(a.produtoId);
+    const nomeB = nomeProduto(b.produtoId);
+    if (nomeA !== nomeB) return nomeA.localeCompare(nomeB, "pt-BR");
+    return (a.atualizadoEm || "").localeCompare(b.atualizadoEm || "");
+  });
+
+  const linhas = ordenadas.map((pux) => {
+    const nomeProd = nomeProduto(pux.produtoId);
+    return `<tr class="linha-puxada-vendedor" style="border-left:4px solid ${corProduto(pux.produtoId)}">
+      <td data-label="Produto"><span class="fornecedor-dot" style="background:${corProduto(pux.produtoId)}"></span><strong>${nomeProd}</strong></td>
+      <td data-label="Fornecedor">${nomeFornecedorLocal(pux.fornecedorId)}</td>
+      <td data-label="Litros">${pux.volumeLitros ? formatarLitros(pux.volumeLitros) + " L" : "—"}</td>
+      <td data-label="Preço Puxado" class="preco"><strong>${formatarPreco(pux.preco)}</strong></td>
     </tr>`;
   }).join("");
 

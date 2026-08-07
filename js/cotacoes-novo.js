@@ -3,7 +3,7 @@ import {
   collection, doc, setDoc, deleteDoc, getDocs, query, where, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { fornecedores, fornecedoresAtivos, aoAtualizarFornecedores } from "./fornecedores.js";
-import { produtos, aoAtualizarProdutos } from "./produtos.js";
+import { produtos, aoAtualizarProdutos, corProduto } from "./produtos.js";
 import {
   toast, confirmar, formatarData, formatarPreco, formatarLitros, hojeISO, corFornecedor,
   diferencaPreco, formatarPercentual, ehProdutoDestaque
@@ -100,8 +100,8 @@ async function montarGradeLancamento() {
 
   if (tbody) {
     tbody.innerHTML = produtos.map((p) => `
-      <tr data-linha-produto="${p.id}" ${ehProdutoDestaque(p.nome) ? 'class="linha-produto-destaque"' : ""}>
-        <td><strong>${p.nome}</strong>${ehProdutoDestaque(p.nome) ? '<span class="mini-tag-destaque">destaque</span>' : ""}</td>
+      <tr data-linha-produto="${p.id}" ${ehProdutoDestaque(p.nome) ? 'class="linha-produto-destaque"' : ""} style="border-left:4px solid ${corProduto(p)}">
+        <td><span class="fornecedor-dot" style="background:${corProduto(p)}"></span><strong>${p.nome}</strong>${ehProdutoDestaque(p.nome) ? '<span class="mini-tag-destaque">destaque</span>' : ""}</td>
         ${forns.map((f) => {
           const cot = mapa[`${f.id}__${p.id}`];
           const valorDia = cot?.preco ?? null;
@@ -211,7 +211,7 @@ export async function montarComparativo() {
       .sort((a, b) => a.preco - b.preco);
 
     if (linhas.length === 0) {
-      return `<div class="produto-titulo"><h3>${p.nome}</h3></div>
+      return `<div class="produto-titulo" style="border-left:4px solid ${corProduto(p)}"><h3><span class="fornecedor-dot" style="background:${corProduto(p)}"></span>${p.nome}</h3></div>
         <p style="color:var(--texto-fraco); margin:0 0 26px;">Nenhuma cotação lançada nesta data.</p>`;
     }
 
@@ -250,8 +250,8 @@ export async function montarComparativo() {
     }).join("");
 
     return `
-      <div class="produto-titulo">
-        <h3>${p.nome}${ehProdutoDestaque(p.nome) ? '<span class="mini-tag-destaque">destaque</span>' : ""}</h3>
+      <div class="produto-titulo" style="border-left:4px solid ${corProduto(p)}">
+        <h3><span class="fornecedor-dot" style="background:${corProduto(p)}"></span>${p.nome}${ehProdutoDestaque(p.nome) ? '<span class="mini-tag-destaque">destaque</span>' : ""}</h3>
         <span class="produto-titulo-tag">Variação do dia: ${formatarPreco(max - min)}</span>
       </div>
       <div class="tabela-wrap" style="margin-bottom:30px;">
@@ -270,8 +270,8 @@ function montarFaixaDestaques(cotacoes, puxadas, data) {
   const cards = produtosDestaque.map((p) => {
     const doProduto = cotacoes.filter((c) => c.produtoId === p.id && c.preco !== null && c.preco !== undefined);
     if (doProduto.length === 0) {
-      return `<div class="destaque-card destaque-vazio">
-        <span class="destaque-tag">${p.nome}</span>
+      return `<div class="destaque-card destaque-vazio" style="border-top:3px solid ${corProduto(p)}">
+        <span class="destaque-tag"><span class="fornecedor-dot" style="background:${corProduto(p)}"></span>${p.nome}</span>
         <p class="destaque-vazio-texto">Sem cotação em ${formatarData(data)}</p>
       </div>`;
     }
@@ -281,8 +281,8 @@ function montarFaixaDestaques(cotacoes, puxadas, data) {
     const resumo = resumoPuxadasNova(puxadasDesseProduto);
     const diff = diferencaPreco(melhor.preco, resumo?.menor ?? null);
     
-    return `<div class="destaque-card">
-      <span class="destaque-tag">${p.nome}</span>
+    return `<div class="destaque-card" style="border-top:3px solid ${corProduto(p)}">
+      <span class="destaque-tag"><span class="fornecedor-dot" style="background:${corProduto(p)}"></span>${p.nome}</span>
       <div class="destaque-valor">${formatarPreco(melhor.preco)}</div>
       <div class="destaque-sub"><span class="fornecedor-dot" style="background:${corFornecedor(melhor.fornecedorId)}"></span>${nomeFornecedor(melhor.fornecedorId)}</div>
       ${diff ? `<div class="destaque-diff ${diff.valor <= 0 ? "boa" : "ruim"}">vs. puxado: ${formatarPreco(diff.valor)} (${formatarPercentual(diff.percentual)})</div>` : ""}
@@ -367,7 +367,7 @@ export async function carregarHistorico() {
     <tr data-id="${c.id}" data-data="${c.data}" data-fornecedor="${c.fornecedorId}" data-produto="${c.produtoId}">
       <td class="col-data" data-label="Data">${formatarData(c.data)}</td>
       <td data-label="Fornecedor"><span class="fornecedor-dot" style="background:${corFornecedor(c.fornecedorId)}"></span>${nomeFornecedor(c.fornecedorId)}</td>
-      <td data-label="Produto">${nomeProduto(c.produtoId)}</td>
+      <td data-label="Produto"><span class="fornecedor-dot" style="background:${corProduto(c.produtoId)}"></span>${nomeProduto(c.produtoId)}</td>
       <td class="col-preco" data-label="Preço do dia">
         <input type="number" step="0.001" value="${c.preco !== null && c.preco !== undefined ? c.preco : ""}"
           data-tipo="dia" class="input-preco-historico">

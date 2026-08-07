@@ -51,13 +51,13 @@ aoLogar(() => {
 
   const papel = papelUsuario();
 
-  // ✅ LÓGICA CORRIGIDA: 
-  // - Editor: vê TUDO
-  // - Vendedor: vê APENAS dashboard
-  // - Visualizador: vê APENAS dashboard
-  
-  if (papel === "vendedor" || papel === "visualizador") {
-    // Vendedor e Visualizador só veem o dashboard - remove tudo mais
+  // - Editor: vê TUDO e pode editar
+  // - Visualizador: vê TUDO, mas só em modo leitura (inputs/botões de ação
+  //   ficam desabilitados pelo CSS .modo-visualizador)
+  // - Vendedor: vê APENAS o dashboard
+
+  if (papel === "vendedor") {
+    // Vendedor só vê o dashboard - remove o resto do menu
     document.querySelector('[data-view="lancamento"]')?.remove();
     document.querySelector('[data-view="puxadas"]')?.remove();
     document.querySelector('[data-view="comparativo"]')?.remove();
@@ -65,6 +65,6 @@ aoLogar(() => {
     document.querySelector('[data-view="fornecedores"]')?.remove();
     document.querySelector('[data-view="produtos"]')?.remove();
   }
-  // Se for editor, vê tudo - nenhuma view é removida
+  // Editor e Visualizador veem tudo - nenhuma view é removida
 
 });

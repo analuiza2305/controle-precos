@@ -121,6 +121,11 @@
           <span style="font-size: 0.85rem; color: var(--texto-fraco); display: block;">Fornecedor(es) da puxada</span>
           <strong id="fornecedor-da-puxada" style="font-size: 1.1rem; color: var(--texto);">-</strong>
         </div>
+        <div style="width: 1px; height: 30px; background-color: var(--borda);"></div>
+        <div>
+          <span style="font-size: 0.85rem; color: var(--texto-fraco); display: block;">Preço puxado</span>
+          <strong id="preco-da-puxada" style="font-size: 1.2rem; color: var(--primaria);">-</strong>
+        </div>
       </div>
 
       <div class="destaque-grid" id="destaque-grid">
@@ -135,7 +140,7 @@
         <div class="tabela-wrap">
           <table class="tabela tabela-minhas-puxadas" id="tabela-minhas-puxadas">
             <thead>
-              <tr><th>Produto</th><th>Preço Puxado</th></tr>
+              <tr><th>Produto</th><th>Fornecedor</th><th>Litros</th><th>Preço Puxado</th></tr>
             </thead>
             <tbody id="minhas-puxadas-tbody"></tbody>
           </table>
@@ -311,10 +316,11 @@
           <input type="text" id="produto-nome" placeholder="Nome do produto" required>
           <select id="produto-categoria"><option value="Diesel">Diesel</option><option value="Gasolina">Gasolina</option><option value="Etanol">Etanol</option><option value="GNV">GNV</option><option value="Outro">Outro</option></select>
           <select id="produto-unidade"><option value="Litro">Litro</option><option value="m³">m³</option><option value="Kg">Kg</option></select>
+          <input type="color" id="produto-cor" value="#1D5F91" title="Cor do produto">
           <button type="submit" class="btn btn-primario">Adicionar</button>
         </form>
         <div class="tabela-wrap">
-          <table class="tabela"><thead><tr><th>Nome</th><th>Categoria</th><th>Unidade</th><th></th></tr></thead><tbody id="tabela-produtos"></tbody></table>
+          <table class="tabela"><thead><tr><th>Nome</th><th>Categoria</th><th>Unidade</th><th>Cor</th><th></th></tr></thead><tbody id="tabela-produtos"></tbody></table>
         </div>
       </div>
     </section>
