@@ -63,7 +63,7 @@
         <span class="nav-icon">▣</span> Dashboard
       </button>
       <button class="nav-item" data-view="lancamento">
-        <span class="nav-icon">＋</span> Lançar Preços
+        <span class="nav-icon">＋</span> Cotações
       </button>
       <button class="nav-item" data-view="puxadas">
         <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-truck" viewBox="0 0 16 16">
@@ -125,7 +125,7 @@
         </div>
         <div style="width: 1px; height: 30px; background-color: var(--borda);"></div>
         <div>
-          <span style="font-size: 0.85rem; color: var(--texto-fraco); display: block;">Preço puxado</span>
+          <span style="font-size: 0.85rem; color: var(--texto-fraco); display: block;">Preço médio pago (compras)</span>
           <strong id="preco-da-puxada" style="font-size: 1.2rem; color: var(--primaria);">-</strong>
         </div>
       </div>
@@ -157,7 +157,7 @@
           <div class="tabela-wrap">
             <table class="tabela" id="tabela-melhores-hoje">
               <thead>
-                <tr><th>Produto</th><th>Melhor fornecedor</th><th>Preço do dia</th><th>Preço puxado</th><th>Dia × puxado</th></tr>
+                <tr><th>Produto</th><th>Melhor fornecedor</th><th>Melhor cotação</th><th>Preço do dia</th><th>Cotação × dia</th></tr>
               </thead>
               <tbody></tbody>
             </table>
@@ -192,7 +192,8 @@
     <section id="view-lancamento" class="view oculto">
       <header class="view-header">
         <div>
-          <h2>Lançar Preços do Dia</h2>
+          <h2>Lançar Cotações</h2>
+          <p class="view-sub">Preços disponíveis por fornecedor — o melhor preço cotado é destacado automaticamente.</p>
         </div>
         <div class="filtro-data"><label>Data da cotação <input type="date" id="lanc-data"></label></div>
       </header>
@@ -216,40 +217,54 @@
       <header class="view-header">
         <div>
           <h2>Lançar Puxadas</h2>
-          <p class="view-sub">Registre as puxadas realizadas por fornecedor e produto.</p>
+          <p class="view-sub">Registre o que foi realmente comprado: fornecedor, produto, preço e quantidade.</p>
         </div>
         <div class="filtro-data"><label>Data da puxada <input type="date" id="puxada-data"></label></div>
       </header>
 
       <div class="puxadas-resumo-grid" id="puxadas-resumo-grid"></div>
 
-      <div class="aviso-visualizacao" id="puxada-aviso">
-        <span>📌 Clique em "+ adicionar puxada" para registrar preços. O sistema salva automaticamente ao sair do campo.</span>
-        <button type="button" class="aviso-fechar" id="puxada-aviso-fechar" aria-label="Fechar aviso">✕</button>
+      <div class="painel painel-puxada-form somente-editor">
+        <div class="painel-header">
+          <h3 id="puxada-form-titulo">Registrar compra</h3>
+        </div>
+        <form id="form-puxada" class="form-puxada-grid">
+          <label class="campo-form">Fornecedor
+            <select id="puxada-form-fornecedor" required></select>
+          </label>
+          <label class="campo-form">Produto
+            <select id="puxada-form-produto" required></select>
+          </label>
+          <label class="campo-form">Preço (R$/L)
+            <input type="number" step="0.001" min="0" id="puxada-form-preco" placeholder="Ex.: 5,850" required>
+          </label>
+          <label class="campo-form">Quantidade (L)
+            <input type="number" step="1" min="0" id="puxada-form-litros" placeholder="Ex.: 2000">
+          </label>
+          <label class="campo-form campo-form-motivo">Motivo da compra
+            <input type="text" id="puxada-form-motivo" placeholder="Ex.: melhor prazo de entrega" required>
+          </label>
+          <div class="campo-form campo-form-dica" id="puxada-form-dica"></div>
+          <div class="form-puxada-acoes">
+            <button type="button" class="btn btn-secundario oculto" id="btn-cancelar-edicao-puxada">Cancelar edição</button>
+            <button type="submit" class="btn btn-primario" id="btn-add-puxada">+ Registrar compra</button>
+          </div>
+        </form>
       </div>
 
-      <div class="painel painel-puxadas">
-        <div class="puxadas-tabs">
-          <button type="button" class="puxadas-tab ativo" data-modo="produto">▦ Por produto</button>
-          <button type="button" class="puxadas-tab" data-modo="tabela">▤ Visualização por tabela</button>
+      <div class="painel painel-puxadas-lista">
+        <div class="painel-header">
+          <h3>Compras do dia</h3>
+          <select id="puxada-filtro-produto"><option value="">Todos os produtos</option></select>
         </div>
-
-        <div class="puxadas-filtros">
-          <label class="puxadas-filtro-produto">Produto
-            <select id="puxada-filtro-produto"><option value="">Todos os produtos</option></select>
-          </label>
-          <div class="puxadas-legenda" id="puxadas-legenda"></div>
-        </div>
-
         <div class="tabela-wrap">
-          <table class="tabela tabela-puxadas vista-produto" id="tabela-puxadas">
-            <thead><tr id="puxada-thead-row"><th>Fornecedor</th></tr></thead>
-            <tbody id="puxada-tbody"></tbody>
+          <table class="tabela" id="tabela-puxadas-lista">
+            <thead><tr><th>Produto</th><th>Fornecedor</th><th>Preço</th><th>Quantidade</th><th>Motivo</th><th></th></tr></thead>
+            <tbody id="puxada-lista-tbody"></tbody>
           </table>
         </div>
         <div class="painel-acoes">
           <span id="puxada-status" class="status-msg"></span>
-          <button id="btn-salvar-puxadas" class="btn btn-primario">💾 Salvar puxadas do dia</button>
         </div>
       </div>
     </section>
@@ -289,7 +304,7 @@
         <div class="tabela-wrap">
           <table class="tabela tabela-historico" id="tabela-historico">
             <thead>
-              <tr><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Preço do dia</th><th>Puxadas do dia (preço + litros)</th><th>Dia × puxado</th><th></th></tr>
+              <tr><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Preço cotado</th><th>Puxadas do dia (preço + litros)</th><th>Cotado × comprado</th><th></th></tr>
             </thead>
             <tbody></tbody>
           </table>

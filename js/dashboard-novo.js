@@ -45,7 +45,7 @@ export async function montarDashboard() {
 
   // Cards de preço do dia (S10/S500) e resumo de puxadas (litros/fornecedor/preço)
   // aparecem para todos os perfis.
-  montarPrecosDia(cotacoes);
+  montarPrecosDia(cotacoes, puxadas);
   montarResumoPuxadas(puxadas);
 
   if (souVendedor()) {
@@ -62,8 +62,11 @@ export async function montarDashboard() {
 
 // ============================================================
 // PREÇOS DO DIA (Cards simples)
+// O "preço do dia" agora é calculado a partir das PUXADAS (compras
+// realmente feitas), não mais a partir da melhor cotação. A melhor
+// cotação continua exibida, mas só como referência secundária.
 // ============================================================
-function montarPrecosDia(cotacoes) {
+function montarPrecosDia(cotacoes, puxadas) {
   if (!destaqueGrid) return;
 
   if (produtos.length === 0) {
@@ -72,27 +75,42 @@ function montarPrecosDia(cotacoes) {
   }
 
   destaqueGrid.innerHTML = produtos.map((p) => {
-    const doProduto = cotacoes.filter((c) => c.produtoId === p.id && c.preco !== null && c.preco !== undefined);
+    const cotacoesDoProduto = cotacoes.filter((c) => c.produtoId === p.id && c.preco !== null && c.preco !== undefined);
+    const melhorCotacao = cotacoesDoProduto.length > 0
+      ? cotacoesDoProduto.reduce((m, c) => (c.preco < m.preco ? c : m), cotacoesDoProduto[0])
+      : null;
 
-    if (doProduto.length === 0) {
+    const puxadasDoProduto = (puxadas || []).filter((pu) => pu.produtoId === p.id && pu.preco !== null && pu.preco !== undefined && !isNaN(pu.preco));
+    const resumo = resumoPuxadas(puxadasDoProduto);
+    const precoDia = resumo ? resumo.referencia : null;
+
+    if (precoDia === null) {
       return `<div class="destaque-card destaque-vazio" style="border-top:3px solid ${corProduto(p)}">
         <span class="destaque-tag"><span class="fornecedor-dot" style="background:${corProduto(p)}"></span>${p.nome}</span>
-        <p class="destaque-vazio-texto">Sem cotação nesta data</p>
+        <p class="destaque-vazio-texto">Sem compra registrada nesta data</p>
+        ${melhorCotacao ? `<p class="destaque-vazio-texto">Melhor cotação: ${formatarPreco(melhorCotacao.preco)}</p>` : ""}
       </div>`;
     }
 
-    const melhor = doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0]);
+    const diff = melhorCotacao ? diferencaPreco(melhorCotacao.preco, precoDia) : null;
+    const diffHtml = diff
+      ? `<div class="destaque-diff ${diff.valor <= 0 ? "boa" : "ruim"}">${formatarPreco(diff.valor)} vs. cotação (${formatarPercentual(diff.percentual)})</div>`
+      : "";
 
     return `<div class="destaque-card" style="border-top:3px solid ${corProduto(p)}">
       <span class="destaque-tag"><span class="fornecedor-dot" style="background:${corProduto(p)}"></span>${p.nome}</span>
-      <div class="destaque-valor">${formatarPreco(melhor.preco)}</div>
-      <div class="destaque-sub">Preço do dia</div>
+      <div class="destaque-valor">${formatarPreco(precoDia)}</div>
+      <div class="destaque-sub">Preço da puxada do dia</div>
+      ${melhorCotacao ? `<div class="destaque-sub destaque-sub-secundario">Melhor cotação: ${formatarPreco(melhorCotacao.preco)}</div>` : ""}
+      ${diffHtml}
     </div>`;
   }).join("");
 }
 
 // ============================================================
-// MELHOR PREÇO POR PRODUTO (HOJE)
+// MELHOR COTAÇÃO × PREÇO DO DIA (POR PRODUTO)
+// "Melhor cotação" = menor preço disponível entre os fornecedores.
+// "Preço do dia" = preço praticado nas compras (puxadas) do dia.
 // ============================================================
 function montarTabelaMelhoresHoje(cotacoes, puxadas) {
   if (!tabelaMelhoresHoje) return;
@@ -104,28 +122,32 @@ function montarTabelaMelhoresHoje(cotacoes, puxadas) {
 
   const linhas = produtos.map((p) => {
     const doProduto = cotacoes.filter((c) => c.produtoId === p.id && c.preco !== null && c.preco !== undefined);
-    if (doProduto.length === 0) {
-      return `<tr><td data-label="Produto">${p.nome}</td><td colspan="4" style="color:var(--texto-fraco)">Sem cotação hoje</td></tr>`;
+    const puxadasDoProduto = (puxadas || []).filter((pu) => pu.produtoId === p.id && pu.preco !== null && pu.preco !== undefined && !isNaN(pu.preco));
+
+    if (doProduto.length === 0 && puxadasDoProduto.length === 0) {
+      return `<tr><td data-label="Produto">${p.nome}</td><td colspan="4" style="color:var(--texto-fraco)">Sem cotação nem compra hoje</td></tr>`;
     }
 
-    // Melhor preço do dia (menor entre todos os fornecedores)
-    const melhor = doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0]);
+    // Melhor cotação (menor preço disponível entre os fornecedores)
+    const melhor = doProduto.length > 0
+      ? doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0])
+      : null;
 
-    // Melhor preço puxado do produto (menor entre todas as puxadas registradas)
-    const puxadasDoProduto = (puxadas || []).filter((pu) => pu.produtoId === p.id && pu.preco !== null && pu.preco !== undefined && !isNaN(pu.preco));
-    const melhorPuxado = puxadasDoProduto.length > 0 ? Math.min(...puxadasDoProduto.map((pu) => pu.preco)) : null;
+    // Preço do dia: baseado no que foi realmente comprado (média ponderada pelas puxadas)
+    const resumo = resumoPuxadas(puxadasDoProduto);
+    const precoDia = resumo ? resumo.referencia : null;
 
-    const diff = diferencaPreco(melhor.preco, melhorPuxado);
+    const diff = diferencaPreco(melhor?.preco, precoDia);
     const diffHtml = diff
       ? `<span style="color:${diff.valor <= 0 ? "var(--verde)" : "var(--vermelho)"}">${formatarPreco(diff.valor)} (${formatarPercentual(diff.percentual)})</span>`
       : `<span style="color:var(--texto-fraco)">—</span>`;
 
     return `<tr class="linha-melhor">
       <td data-label="Produto"><span class="fornecedor-dot" style="background:${corProduto(p)}"></span><strong>${p.nome}</strong></td>
-      <td data-label="Melhor fornecedor">${nomeFornecedor(melhor.fornecedorId)}</td>
-      <td class="preco" data-label="Preço do dia">${formatarPreco(melhor.preco)}</td>
-      <td class="preco" data-label="Preço puxado">${melhorPuxado !== null ? formatarPreco(melhorPuxado) : "—"}</td>
-      <td data-label="Dia × puxado">${diffHtml}</td>
+      <td data-label="Melhor fornecedor">${melhor ? nomeFornecedor(melhor.fornecedorId) : "—"}</td>
+      <td class="preco" data-label="Melhor cotação">${melhor ? formatarPreco(melhor.preco) : "—"}</td>
+      <td class="preco" data-label="Preço do dia">${precoDia !== null ? formatarPreco(precoDia) : "—"}</td>
+      <td data-label="Cotação × dia">${diffHtml}</td>
     </tr>`;
   }).join("");
 
@@ -181,9 +203,9 @@ async function montarGraficoEvolucao() {
     data: {
       labels,
       datasets: [
-        { label: "Melhor preço", data: melhores, borderColor: "#0F9D58", backgroundColor: "rgba(15,157,88,.1)", tension: .25, fill: true, pointRadius: 3 },
-        { label: "Média de mercado", data: medias, borderColor: "#1D5F91", backgroundColor: "rgba(29,95,145,.06)", borderDash: [5, 4], tension: .25, fill: true, pointRadius: 2 },
-        { label: "Puxadas", data: puxadasMedias, borderColor: "#F2B705", backgroundColor: "rgba(242,183,5,.08)", tension: .25, fill: false, pointRadius: 3, spanGaps: true }
+        { label: "Melhor cotação", data: melhores, borderColor: "#0F9D58", backgroundColor: "rgba(15,157,88,.1)", tension: .25, fill: true, pointRadius: 3 },
+        { label: "Média de cotações", data: medias, borderColor: "#1D5F91", backgroundColor: "rgba(29,95,145,.06)", borderDash: [5, 4], tension: .25, fill: true, pointRadius: 2 },
+        { label: "Preço do dia (compra)", data: puxadasMedias, borderColor: "#F2B705", backgroundColor: "rgba(242,183,5,.08)", tension: .25, fill: false, pointRadius: 3, spanGaps: true }
       ]
     },
     options: {

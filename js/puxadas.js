@@ -6,8 +6,7 @@ import { fornecedores, fornecedoresAtivos, aoAtualizarFornecedores } from "./for
 import { produtos, aoAtualizarProdutos, corProduto } from "./produtos.js";
 import { buscarCotacoesPorData } from "./cotacoes-novo.js";
 import {
-  toast, confirmar, pedirTexto, formatarData, formatarPreco, formatarLitros, hojeISO, corFornecedor,
-  diferencaPreco, formatarPercentual, ehProdutoDestaque
+  toast, confirmar, formatarPreco, formatarLitros, hojeISO, corFornecedor
 } from "./utils.js";
 
 const colecaoRef = collection(db, "puxadas");
@@ -90,101 +89,83 @@ export function resumoPuxadas(puxadas) {
   };
 }
 
+// ============================================================
+// TELA "LANÇAR PUXADAS" — versão simplificada
+// Um formulário único para registrar cada compra (fornecedor,
+// produto, preço, quantidade e motivo) + uma lista das compras
+// do dia, com edição e exclusão. Substitui a antiga grade
+// matricial (produto × fornecedor) com múltiplas linhas por célula.
+// ============================================================
 const inputData = document.getElementById("puxada-data");
-const thead = document.getElementById("puxada-thead-row");
-const tbody = document.getElementById("puxada-tbody");
-const tabelaEl = document.getElementById("tabela-puxadas");
-const statusEl = document.getElementById("puxada-status");
-const btnSalvarTudo = document.getElementById("btn-salvar-puxadas");
 const resumoGrid = document.getElementById("puxadas-resumo-grid");
-const avisoEl = document.getElementById("puxada-aviso");
-const avisoFechar = document.getElementById("puxada-aviso-fechar");
 const filtroProduto = document.getElementById("puxada-filtro-produto");
-const legendaEl = document.getElementById("puxadas-legenda");
-const tabs = document.querySelectorAll(".puxadas-tab");
+const listaTbody = document.getElementById("puxada-lista-tbody");
+const statusEl = document.getElementById("puxada-status");
+
+const formEl = document.getElementById("form-puxada");
+const formTitulo = document.getElementById("puxada-form-titulo");
+const selectFornecedor = document.getElementById("puxada-form-fornecedor");
+const selectProduto = document.getElementById("puxada-form-produto");
+const inputPreco = document.getElementById("puxada-form-preco");
+const inputLitros = document.getElementById("puxada-form-litros");
+const inputMotivo = document.getElementById("puxada-form-motivo");
+const dicaEl = document.getElementById("puxada-form-dica");
+const btnAdd = document.getElementById("btn-add-puxada");
+const btnCancelarEdicao = document.getElementById("btn-cancelar-edicao-puxada");
+
+let edicaoAtualId = null;
+let cotacoesDoDiaCache = [];
+let puxadasDoDiaCache = [];
 
 if (inputData) {
   inputData.value = hojeISO();
-  inputData.addEventListener("change", montarGradePuxadas);
-  aoAtualizarFornecedores(montarGradePuxadas);
-  aoAtualizarProdutos(montarGradePuxadas);
+  inputData.addEventListener("change", () => { cancelarEdicao(); carregarPuxadas(); });
+  aoAtualizarFornecedores(() => { montarSelects(); carregarPuxadas(); });
+  aoAtualizarProdutos(() => { montarSelects(); carregarPuxadas(); });
 }
 
-// Aviso: fecha e lembra a escolha (por navegador)
-if (avisoEl && avisoFechar) {
-  if (localStorage.getItem("puxadaAvisoOculto") === "1") avisoEl.classList.add("oculto");
-  avisoFechar.addEventListener("click", () => {
-    avisoEl.classList.add("oculto");
-    localStorage.setItem("puxadaAvisoOculto", "1");
-  });
-}
+function montarSelects() {
+  const forns = fornecedoresAtivos();
 
-// Abas "Por produto" / "Visualização por tabela"
-tabs.forEach((tab) => {
-  tab.addEventListener("click", () => {
-    tabs.forEach((t) => t.classList.remove("ativo"));
-    tab.classList.add("ativo");
-    const modo = tab.dataset.modo;
-    if (tabelaEl) {
-      tabelaEl.classList.toggle("vista-tabela", modo === "tabela");
-      tabelaEl.classList.toggle("vista-produto", modo !== "tabela");
-    }
-  });
-});
-
-// Filtro por produto (mostra/esconde linhas)
-if (filtroProduto) {
-  filtroProduto.addEventListener("change", () => {
-    const alvo = filtroProduto.value;
-    if (!tbody) return;
-    tbody.querySelectorAll("tr[data-linha-produto]").forEach((tr) => {
-      tr.style.display = (!alvo || tr.dataset.linhaProduto === alvo) ? "" : "none";
-    });
-  });
-}
-
-function montarFiltroProduto() {
-  if (!filtroProduto) return;
-  const atual = filtroProduto.value;
-  filtroProduto.innerHTML = `<option value="">Todos os produtos</option>` +
-    produtos.map((p) => `<option value="${p.id}">${p.nome}</option>`).join("");
-  if (atual) filtroProduto.value = atual;
-}
-
-function montarLegendaFornecedores(forns) {
-  if (!legendaEl) return;
-  legendaEl.innerHTML = forns.map((f) => `
-    <span class="legenda-pill">
-      <span class="fornecedor-dot" style="background:${corFornecedor(f.id)}"></span>${f.nome}
-    </span>`).join("");
-}
-
-function montarResumoPuxadas(puxadasDoDia) {
-  if (!resumoGrid) return;
-
-  const totalPuxadas = puxadasDoDia.length;
-  const volumeTotal = puxadasDoDia.reduce((s, p) => s + (p.volumeLitros || 0), 0);
-
-  const produtoDestaque = produtos.find((p) => ehProdutoDestaque(p.nome));
-  const rotuloDestaque = produtoDestaque ? produtoDestaque.nome : "destaque";
-  const puxadasDestaque = produtoDestaque
-    ? puxadasDoDia.filter((p) => p.produtoId === produtoDestaque.id)
-    : [];
-
-  let menor = null, maior = null;
-  if (puxadasDestaque.length > 0) {
-    menor = puxadasDestaque.reduce((m, p) => (p.preco < m.preco ? p : m), puxadasDestaque[0]);
-    maior = puxadasDestaque.reduce((m, p) => (p.preco > m.preco ? p : m), puxadasDestaque[0]);
+  if (selectFornecedor) {
+    const atual = selectFornecedor.value;
+    selectFornecedor.innerHTML = forns.length
+      ? forns.map((f) => `<option value="${f.id}">${f.nome}</option>`).join("")
+      : `<option value="">Cadastre um fornecedor</option>`;
+    if (atual && forns.some((f) => f.id === atual)) selectFornecedor.value = atual;
   }
 
-  const nomeForn = (id) => fornecedores.find((f) => f.id === id)?.nome || "—";
+  if (selectProduto) {
+    const atual = selectProduto.value;
+    selectProduto.innerHTML = produtos.length
+      ? produtos.map((p) => `<option value="${p.id}">${p.nome}</option>`).join("")
+      : `<option value="">Cadastre um produto</option>`;
+    if (atual && produtos.some((p) => p.id === atual)) selectProduto.value = atual;
+  }
+
+  if (filtroProduto) {
+    const atual = filtroProduto.value;
+    filtroProduto.innerHTML = `<option value="">Todos os produtos</option>` +
+      produtos.map((p) => `<option value="${p.id}">${p.nome}</option>`).join("");
+    if (atual) filtroProduto.value = atual;
+  }
+
+  atualizarDica();
+}
+
+function montarResumo(puxadasDoDia) {
+  if (!resumoGrid) return;
+
+  const total = puxadasDoDia.length;
+  const volumeTotal = puxadasDoDia.reduce((s, p) => s + (p.volumeLitros || 0), 0);
+  const resumo = resumoPuxadas(puxadasDoDia);
 
   resumoGrid.innerHTML = `
     <div class="resumo-card">
       <span class="resumo-icone">🚚</span>
       <div class="resumo-textos">
-        <span class="resumo-label">Total de puxadas (dia)</span>
-        <div class="resumo-valor">${totalPuxadas}<span class="resumo-unidade">puxadas</span></div>
+        <span class="resumo-label">Compras registradas (dia)</span>
+        <div class="resumo-valor">${total}<span class="resumo-unidade">compra${total === 1 ? "" : "s"}</span></div>
       </div>
     </div>
     <div class="resumo-card">
@@ -197,288 +178,179 @@ function montarResumoPuxadas(puxadasDoDia) {
     <div class="resumo-card">
       <span class="resumo-icone icone-verde">💲</span>
       <div class="resumo-textos">
-        <span class="resumo-label">Menor preço (${rotuloDestaque})</span>
-        <div class="resumo-valor">${menor ? formatarPreco(menor.preco) : "—"}<span class="resumo-unidade">R$ / L</span></div>
-        <span class="resumo-sub">${menor ? nomeForn(menor.fornecedorId) : "Sem puxadas hoje"}</span>
-      </div>
-    </div>
-    <div class="resumo-card">
-      <span class="resumo-icone icone-laranja">📈</span>
-      <div class="resumo-textos">
-        <span class="resumo-label">Maior preço (${rotuloDestaque})</span>
-        <div class="resumo-valor">${maior ? formatarPreco(maior.preco) : "—"}<span class="resumo-unidade">R$ / L</span></div>
-        <span class="resumo-sub">${maior ? nomeForn(maior.fornecedorId) : "Sem puxadas hoje"}</span>
+        <span class="resumo-label">Preço do dia (todas as compras)</span>
+        <div class="resumo-valor">${resumo ? formatarPreco(resumo.referencia) : "—"}<span class="resumo-unidade">R$ / L</span></div>
       </div>
     </div>
   `;
 }
 
-async function montarGradePuxadas() {
-  const forns = fornecedoresAtivos();
-  montarFiltroProduto();
-  montarLegendaFornecedores(forns);
+function nomeForn(id) { return fornecedores.find((f) => f.id === id)?.nome || "(removido)"; }
+function nomeProd(id) { return produtos.find((p) => p.id === id)?.nome || "(removido)"; }
 
-  if (produtos.length === 0 || forns.length === 0) {
-    if (thead) thead.innerHTML = "<th>Fornecedor</th>";
-    if (tbody) tbody.innerHTML = `<tr><td style="color:var(--texto-fraco)">Cadastre ao menos um produto e um fornecedor ativo para lançar puxadas.</td></tr>`;
-    if (resumoGrid) resumoGrid.innerHTML = "";
+function montarLista() {
+  if (!listaTbody) return;
+
+  if (puxadasDoDiaCache.length === 0) {
+    listaTbody.innerHTML = `<tr><td colspan="6" style="color:var(--texto-fraco); text-align:center; padding:20px;">Nenhuma compra registrada neste dia.</td></tr>`;
     return;
   }
 
-  if (thead) {
-    thead.innerHTML = "<th>Fornecedor</th>" + forns.map((f) => `
-      <th style="border-top:3px solid ${corFornecedor(f.id)}">
-        <span class="fornecedor-dot" style="background:${corFornecedor(f.id)}"></span>${f.nome}
-      </th>`).join("");
+  const alvo = filtroProduto?.value || "";
+  const filtradas = alvo ? puxadasDoDiaCache.filter((p) => p.produtoId === alvo) : puxadasDoDiaCache;
+
+  if (filtradas.length === 0) {
+    listaTbody.innerHTML = `<tr><td colspan="6" style="color:var(--texto-fraco); text-align:center; padding:20px;">Nenhuma compra para este produto.</td></tr>`;
+    return;
   }
 
+  const ordenadas = [...filtradas].sort((a, b) => {
+    const nomeA = nomeProd(a.produtoId), nomeB = nomeProd(b.produtoId);
+    if (nomeA !== nomeB) return nomeA.localeCompare(nomeB, "pt-BR");
+    return (b.atualizadoEm || "").localeCompare(a.atualizadoEm || "");
+  });
+
+  listaTbody.innerHTML = ordenadas.map((p) => `
+    <tr data-id="${p.id}" style="border-left:4px solid ${corProduto(p.produtoId)}">
+      <td data-label="Produto"><span class="fornecedor-dot" style="background:${corProduto(p.produtoId)}"></span><strong>${nomeProd(p.produtoId)}</strong></td>
+      <td data-label="Fornecedor"><span class="fornecedor-dot" style="background:${corFornecedor(p.fornecedorId)}"></span>${nomeForn(p.fornecedorId)}</td>
+      <td class="preco" data-label="Preço">${formatarPreco(p.preco)}</td>
+      <td data-label="Quantidade">${p.volumeLitros ? formatarLitros(p.volumeLitros) : "—"}</td>
+      <td data-label="Motivo" class="col-motivo-puxada" title="${(p.justificativa || "").replace(/"/g, "&quot;")}">${p.justificativa || "—"}</td>
+      <td data-label="" class="col-acao somente-editor">
+        <button type="button" class="btn-icone" data-acao="editar" title="Editar">✎</button>
+        <button type="button" class="btn-icone perigo" data-acao="excluir" title="Excluir">✕</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+async function carregarPuxadas() {
   const data = inputData.value || hojeISO();
-  const [puxadasExistentes, cotacoesDoDia] = await Promise.all([
+  if (listaTbody) listaTbody.innerHTML = `<tr><td colspan="6" style="color:var(--texto-fraco)">Carregando...</td></tr>`;
+
+  const [puxadasDoDia, cotacoesDoDia] = await Promise.all([
     buscarPuxadasPorData(data),
     buscarCotacoesPorData(data).catch(() => [])
   ]);
 
-  montarResumoPuxadas(puxadasExistentes);
+  puxadasDoDiaCache = puxadasDoDia;
+  cotacoesDoDiaCache = cotacoesDoDia;
 
-  const mapa = {};
-  puxadasExistentes.forEach((p) => {
-    const chave = `${p.fornecedorId}__${p.produtoId}`;
-    if (!mapa[chave]) mapa[chave] = [];
-    mapa[chave].push(p);
-  });
+  montarResumo(puxadasDoDia);
+  montarLista();
+  atualizarDica();
+}
 
-  if (tbody) {
-    tbody.innerHTML = produtos.map((p) => {
-      const destaque = ehProdutoDestaque(p.nome);
-      const puxadasDoProduto = puxadasExistentes.filter((pux) => pux.produtoId === p.id);
-      const resumoProduto = resumoPuxadas(puxadasDoProduto);
-
-      // "Preço sugerido" = menor cotação lançada hoje para este produto (dado que o sistema já mostra em Lançar Preços/Dashboard)
-      const cotacoesDoProduto = cotacoesDoDia.filter((c) => c.produtoId === p.id && c.preco !== null && c.preco !== undefined);
-      const precoSugerido = cotacoesDoProduto.length
-        ? Math.min(...cotacoesDoProduto.map((c) => c.preco))
-        : null;
-
-      return `
-      <tr data-linha-produto="${p.id}" ${destaque ? 'class="linha-produto-destaque"' : ""} style="border-left:4px solid ${corProduto(p)}">
-        <td class="celula-produto-info">
-          <div class="produto-nome-linha">
-            <span class="fornecedor-dot" style="background:${corProduto(p)}"></span><strong>${p.nome}</strong>${destaque ? '<span class="mini-tag-destaque">Destaque</span>' : ""}
-          </div>
-          <div class="produto-info-extra">
-            <div class="produto-info-item">
-              <span class="produto-info-label">Preço sugerido</span>
-              <span class="produto-info-valor">${precoSugerido !== null ? formatarPreco(precoSugerido) + " R$/L" : "—"}</span>
-            </div>
-            <div class="produto-info-item">
-              <span class="produto-info-label">Saldo disponível</span>
-              <span class="produto-info-valor saldo">${resumoProduto?.volumeTotal ? formatarLitros(resumoProduto.volumeTotal) + " L" : "0 L"}</span>
-            </div>
-          </div>
-        </td>
-        ${forns.map((f) => {
-          const puxadas = mapa[`${f.id}__${p.id}`] || [];
-          return `<td class="cel-puxadas">
-            <div class="puxadas-container" data-produto="${p.id}" data-fornecedor="${f.id}">
-              <div class="puxadas-lista puxadas-lista-ativa">
-                ${renderLinhasPuxadas(puxadas)}
-                <button type="button" class="btn-add-puxada-nova" data-acao="add-puxada-nova">+ Adicionar puxada</button>
-              </div>
-            </div>
-          </td>`;
-        }).join("")}
-      </tr>`;
-    }).join("");
+// Mostra a melhor cotação do dia para o produto selecionado, como referência
+function atualizarDica() {
+  if (!dicaEl || !selectProduto) return;
+  const produtoId = selectProduto.value;
+  const doProduto = cotacoesDoDiaCache.filter((c) => c.produtoId === produtoId && c.preco !== null && c.preco !== undefined);
+  if (!produtoId || doProduto.length === 0) {
+    dicaEl.textContent = "";
+    return;
   }
+  const melhor = doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0]);
+  dicaEl.textContent = `Melhor cotação hoje: ${formatarPreco(melhor.preco)} (${nomeForn(melhor.fornecedorId)})`;
 }
 
-function renderLinhasPuxadas(puxadas) {
-  if (!puxadas || puxadas.length === 0) return renderLinhaPuxada(null);
-  return puxadas.map((p) => renderLinhaPuxada(p)).join("");
+if (selectProduto) selectProduto.addEventListener("change", atualizarDica);
+if (filtroProduto) filtroProduto.addEventListener("change", montarLista);
+
+function preencherFormParaEdicao(puxada) {
+  edicaoAtualId = puxada.id;
+  selectFornecedor.value = puxada.fornecedorId;
+  selectProduto.value = puxada.produtoId;
+  inputPreco.value = puxada.preco ?? "";
+  inputLitros.value = puxada.volumeLitros ?? "";
+  inputMotivo.value = puxada.justificativa || "";
+  formTitulo.textContent = "Editar compra";
+  btnAdd.textContent = "Salvar alterações";
+  btnCancelarEdicao.classList.remove("oculto");
+  atualizarDica();
+  formEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  inputPreco.focus();
 }
 
-function escapeAttr(txt) {
-  return String(txt || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+function cancelarEdicao() {
+  edicaoAtualId = null;
+  formEl.reset();
+  formTitulo.textContent = "Registrar compra";
+  btnAdd.textContent = "+ Registrar compra";
+  btnCancelarEdicao.classList.add("oculto");
+  atualizarDica();
 }
 
-function renderLinhaPuxada(p) {
-  const preco = p && p.preco !== null && p.preco !== undefined ? p.preco : "";
-  const litros = p && p.volumeLitros !== null && p.volumeLitros !== undefined ? p.volumeLitros : "";
-  const justificativa = p && p.justificativa ? p.justificativa : "";
-  const idPux = p?.id || "";
-  const temMotivo = justificativa.trim() !== "";
-
-  return `<div class="puxada-linha" data-puxada-id="${idPux}" data-justificativa="${escapeAttr(justificativa)}">
-    <div class="puxada-linha-topo">
-      <button type="button" class="btn-icone-linha btn-obs-puxada ${temMotivo ? "tem-motivo" : ""}" data-acao="editar-motivo" title="${temMotivo ? "Ver/editar motivo" : "Adicionar motivo"}">📝</button>
-      ${idPux ? `<button type="button" class="btn-icone-linha btn-remover-puxada" data-acao="remover-puxada" title="Remover puxada">✕</button>` : ""}
-    </div>
-    <div class="puxada-campos-linha">
-      <div class="campo-puxada">
-        <span class="campo-label">Preço (R$/L)</span>
-        <input type="number" step="0.001" min="0" placeholder="Ex.: 5,85" data-campo="preco" class="input-puxada-preco" value="${preco}">
-      </div>
-      <div class="campo-puxada">
-        <span class="campo-label">Litros</span>
-        <input type="number" step="1" min="0" placeholder="Ex.: 2000" data-campo="litros" class="input-puxada-litros" value="${litros}">
-      </div>
-    </div>
-  </div>`;
+if (btnCancelarEdicao) {
+  btnCancelarEdicao.addEventListener("click", cancelarEdicao);
 }
 
-// Salva (ou atualiza) a puxada de uma linha específica, sem reconstruir a grade inteira.
-async function salvarLinhaAtual(linha, container) {
-  const { fornecedor, produto } = container.dataset;
-  const data = inputData.value || hojeISO();
-  const idPuxada = linha.dataset.puxadaId;
-  const preco = linha.querySelector('[data-campo="preco"]').value;
-  const litros = linha.querySelector('[data-campo="litros"]').value;
-  const justificativa = linha.dataset.justificativa || "";
-
-  if (preco === "" || !justificativa.trim()) return null;
-
-  const novoId = await salvarPuxada(data, fornecedor, produto, preco, litros, justificativa, idPuxada || null);
-  if (novoId) {
-    linha.dataset.puxadaId = novoId;
-    if (!linha.querySelector(".btn-remover-puxada")) {
-      linha.querySelector(".puxada-linha-topo").insertAdjacentHTML(
-        "beforeend",
-        `<button type="button" class="btn-icone-linha btn-remover-puxada" data-acao="remover-puxada" title="Remover puxada">✕</button>`
-      );
-    }
-    statusEl.textContent = "Salvo ✓";
-    statusEl.classList.add("ok");
-    setTimeout(() => { statusEl.textContent = ""; statusEl.classList.remove("ok"); }, 2200);
-  }
-  return novoId;
-}
-
-function coletarPuxadasDeContainer(container) {
-  return [...container.querySelectorAll(".puxada-linha")].map((linha) => {
-    const precoStr = linha.querySelector('[data-campo="preco"]').value;
-    const litrosStr = linha.querySelector('[data-campo="litros"]').value;
-    const justificativa = linha.dataset.justificativa || "";
-    const id = linha.dataset.puxadaId;
-    return {
-      id: id || null,
-      preco: precoStr === "" ? null : parseFloat(precoStr),
-      volumeLitros: litrosStr === "" ? null : parseFloat(litrosStr),
-      justificativa
-    };
-  }).filter((p) => p.preco !== null && !isNaN(p.preco) && p.preco >= 0);
-}
-
-if (tbody) {
-  tbody.addEventListener("click", async (e) => {
-    const btnAdd = e.target.closest('[data-acao="add-puxada-nova"]');
-    if (btnAdd) {
-      const container = btnAdd.closest(".puxadas-container");
-      btnAdd.insertAdjacentHTML("beforebegin", renderLinhaPuxada(null));
-      container.querySelector(".puxada-linha:last-of-type .input-puxada-preco")?.focus();
-      return;
-    }
-
-    const btnRemover = e.target.closest('[data-acao="remover-puxada"]');
-    if (btnRemover) {
-      const container = btnRemover.closest(".puxadas-container");
-      const linha = btnRemover.closest(".puxada-linha");
-      const idPuxada = linha.dataset.puxadaId;
-      
-      if (idPuxada) {
-        const ok = await confirmar("Remover esta puxada?");
-        if (!ok) return;
-        await deletarPuxada(idPuxada);
-        toast("Puxada removida.", "sucesso");
-      }
-      
-      linha.remove();
-      return;
-    }
-
-    const btnMotivo = e.target.closest('[data-acao="editar-motivo"]');
-    if (btnMotivo) {
-      const linha = btnMotivo.closest(".puxada-linha");
-      const container = linha.closest(".puxadas-container");
-      const motivo = await pedirTexto("Motivo da puxada", linha.dataset.justificativa || "");
-      if (motivo === null) return; // cancelou, não mexe no que já estava salvo
-
-      linha.dataset.justificativa = motivo;
-      btnMotivo.classList.add("tem-motivo");
-      btnMotivo.title = "Ver/editar motivo";
-
-      // Se o preço já estiver preenchido, salva/atualiza na hora
-      const temPreco = linha.querySelector('[data-campo="preco"]').value !== "";
-      if (temPreco) await salvarLinhaAtual(linha, container);
-      return;
-    }
-  });
-
-  // O auto-save não reconstrói a tabela inteira, evitando perda de foco
-  tbody.addEventListener("blur", async (e) => {
-    if (!e.target.matches('input[data-campo]')) return;
-    const linha = e.target.closest(".puxada-linha");
-    const container = e.target.closest(".puxadas-container");
-    const idPuxada = linha.dataset.puxadaId;
-    const preco = linha.querySelector('[data-campo="preco"]').value;
-
-    if (preco === "") {
-      if (idPuxada) {
-        await deletarPuxada(idPuxada);
-        toast("Puxada removida.", "sucesso");
-      }
-      linha.remove();
-      return;
-    }
-
-    const temMotivo = (linha.dataset.justificativa || "").trim() !== "";
-    if (!temMotivo) {
-      // Só abre o popup ao sair do campo Preço, pra não duplicar ao tabular pro campo Litros
-      if (e.target.dataset.campo !== "preco") return;
-      const motivo = await pedirTexto("Motivo da puxada");
-      if (motivo === null) {
-        toast("Informe o motivo para salvar a puxada.", "erro");
-        return;
-      }
-      linha.dataset.justificativa = motivo;
-      const btnObs = linha.querySelector(".btn-obs-puxada");
-      if (btnObs) { btnObs.classList.add("tem-motivo"); btnObs.title = "Ver/editar motivo"; }
-    }
-
-    await salvarLinhaAtual(linha, container);
-  }, true);
-}
-
-if (btnSalvarTudo) {
-  btnSalvarTudo.addEventListener("click", async () => {
-    const containers = [...tbody.querySelectorAll(".puxadas-container")];
+if (formEl) {
+  formEl.addEventListener("submit", async (e) => {
+    e.preventDefault();
     const data = inputData.value || hojeISO();
-    btnSalvarTudo.disabled = true;
-    btnSalvarTudo.textContent = "Salvando...";
-    let semMotivo = 0;
-    
+    const fornecedorId = selectFornecedor.value;
+    const produtoId = selectProduto.value;
+    const preco = inputPreco.value;
+    const litros = inputLitros.value;
+    const motivo = inputMotivo.value;
+
+    if (!fornecedorId || !produtoId) {
+      toast("Selecione fornecedor e produto.", "erro");
+      return;
+    }
+
+    btnAdd.disabled = true;
     try {
-      for (const container of containers) {
-        const puxadas = coletarPuxadasDeContainer(container);
-        const { fornecedor, produto } = container.dataset;
-        
-        for (const pux of puxadas) {
-          if (!pux.justificativa.trim()) { semMotivo++; continue; }
-          await salvarPuxada(data, fornecedor, produto, pux.preco, pux.volumeLitros, pux.justificativa, pux.id || null);
-        }
-      }
-      
-      if (semMotivo > 0) {
-        toast(`${semMotivo} puxada(s) com preço mas sem motivo não foram salvas. Clique no ícone 📝 pra completar.`, "erro");
+      const id = await salvarPuxada(data, fornecedorId, produtoId, preco, litros, motivo, edicaoAtualId);
+      if (!id) return; // salvarPuxada já mostrou o toast de erro (preço/motivo faltando)
+
+      toast(edicaoAtualId ? "Compra atualizada." : "Compra registrada.", "sucesso");
+
+      const eraEdicao = !!edicaoAtualId;
+      edicaoAtualId = null;
+      formTitulo.textContent = "Registrar compra";
+      btnAdd.textContent = "+ Registrar compra";
+      btnCancelarEdicao.classList.add("oculto");
+
+      if (eraEdicao) {
+        formEl.reset();
       } else {
-        toast("Puxadas do dia salvas com sucesso.", "sucesso");
+        // Mantém fornecedor e produto selecionados para agilizar o próximo lançamento
+        inputPreco.value = "";
+        inputLitros.value = "";
+        inputMotivo.value = "";
+        inputPreco.focus();
       }
-      // Ao clicar em Salvar Tudo, recarregamos a grade toda
-      montarGradePuxadas();
-    } catch (err) {
-      // toast já disparado internamente no salvarPuxada em caso de falta de justifiativa
+
+      await carregarPuxadas();
     } finally {
-      btnSalvarTudo.disabled = false;
-      btnSalvarTudo.textContent = "💾 Salvar puxadas do dia";
+      btnAdd.disabled = false;
+    }
+  });
+}
+
+if (listaTbody) {
+  listaTbody.addEventListener("click", async (e) => {
+    const tr = e.target.closest("tr[data-id]");
+    if (!tr) return;
+    const id = tr.dataset.id;
+    const puxada = puxadasDoDiaCache.find((p) => p.id === id);
+    if (!puxada) return;
+
+    if (e.target.closest('[data-acao="editar"]')) {
+      preencherFormParaEdicao(puxada);
+      return;
+    }
+
+    if (e.target.closest('[data-acao="excluir"]')) {
+      const ok = await confirmar("Excluir esta compra?");
+      if (!ok) return;
+      await deletarPuxada(id);
+      toast("Compra excluída.", "sucesso");
+      if (edicaoAtualId === id) cancelarEdicao();
+      await carregarPuxadas();
     }
   });
 }

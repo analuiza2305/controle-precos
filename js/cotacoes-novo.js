@@ -222,9 +222,9 @@ export async function montarComparativo() {
       const classe = c.preco === min ? "linha-melhor" : c.preco === max && max !== min ? "linha-pior" : "";
       const rankClasse = i === 0 ? "rank-pos top" : "rank-pos";
       const selo = c.preco === min
-        ? `<span class="selo selo-melhor">Melhor preço</span>`
+        ? `<span class="selo selo-melhor">Melhor cotação</span>`
         : c.preco === max && max !== min
-          ? `<span class="selo selo-pior">Maior preço</span>` : "";
+          ? `<span class="selo selo-pior">Maior cotação</span>` : "";
       
       // Puxadas deste fornecedor/produto neste dia
       const puxadasDesseForn = puxadas.filter((pux) => 
@@ -242,9 +242,9 @@ export async function montarComparativo() {
       return `<tr class="${classe}">
         <td data-label="Rank"><span class="${rankClasse}">${i + 1}º</span></td>
         <td data-label="Fornecedor"><span class="fornecedor-dot" style="background:${corFornecedor(c.fornecedorId)}"></span>${nomeFornecedor(c.fornecedorId)}</td>
-        <td class="preco" data-label="Preço do dia">${formatarPreco(c.preco)}</td>
+        <td class="preco" data-label="Preço cotado">${formatarPreco(c.preco)}</td>
         <td data-label="Puxadas do dia">${puxadasHtml}</td>
-        <td data-label="Dia × puxado">${diffHtml}</td>
+        <td data-label="Cotado × comprado">${diffHtml}</td>
         <td data-label="">${selo}</td>
       </tr>`;
     }).join("");
@@ -256,7 +256,7 @@ export async function montarComparativo() {
       </div>
       <div class="tabela-wrap" style="margin-bottom:30px;">
         <table class="tabela">
-          <thead><tr><th>Rank</th><th>Fornecedor</th><th>Preço do dia</th><th>Puxadas do dia</th><th>Dia × puxado</th><th></th></tr></thead>
+          <thead><tr><th>Rank</th><th>Fornecedor</th><th>Preço cotado</th><th>Puxadas do dia</th><th>Cotado × comprado</th><th></th></tr></thead>
           <tbody>${linhasHtml}</tbody>
         </table>
       </div>`;
@@ -279,14 +279,14 @@ function montarFaixaDestaques(cotacoes, puxadas, data) {
     const melhor = doProduto.reduce((m, c) => (c.preco < m.preco ? c : m), doProduto[0]);
     const puxadasDesseProduto = puxadas.filter((pux) => pux.produtoId === p.id);
     const resumo = resumoPuxadasNova(puxadasDesseProduto);
-    const diff = diferencaPreco(melhor.preco, resumo?.menor ?? null);
+    const diff = diferencaPreco(melhor.preco, resumo?.referencia ?? null);
     
     return `<div class="destaque-card" style="border-top:3px solid ${corProduto(p)}">
       <span class="destaque-tag"><span class="fornecedor-dot" style="background:${corProduto(p)}"></span>${p.nome}</span>
       <div class="destaque-valor">${formatarPreco(melhor.preco)}</div>
-      <div class="destaque-sub"><span class="fornecedor-dot" style="background:${corFornecedor(melhor.fornecedorId)}"></span>${nomeFornecedor(melhor.fornecedorId)}</div>
-      ${diff ? `<div class="destaque-diff ${diff.valor <= 0 ? "boa" : "ruim"}">vs. puxado: ${formatarPreco(diff.valor)} (${formatarPercentual(diff.percentual)})</div>` : ""}
-      ${resumo?.volumeTotal ? `<div class="destaque-sub">Total puxado: ${formatarLitros(resumo.volumeTotal)}</div>` : ""}
+      <div class="destaque-sub">Melhor cotação · <span class="fornecedor-dot" style="background:${corFornecedor(melhor.fornecedorId)}"></span>${nomeFornecedor(melhor.fornecedorId)}</div>
+      ${diff ? `<div class="destaque-diff ${diff.valor <= 0 ? "boa" : "ruim"}">vs. preço do dia (compra): ${formatarPreco(diff.valor)} (${formatarPercentual(diff.percentual)})</div>` : ""}
+      ${resumo?.volumeTotal ? `<div class="destaque-sub">Total comprado: ${formatarLitros(resumo.volumeTotal)}</div>` : ""}
     </div>`;
   }).join("");
 
@@ -368,7 +368,7 @@ export async function carregarHistorico() {
       <td class="col-data" data-label="Data">${formatarData(c.data)}</td>
       <td data-label="Fornecedor"><span class="fornecedor-dot" style="background:${corFornecedor(c.fornecedorId)}"></span>${nomeFornecedor(c.fornecedorId)}</td>
       <td data-label="Produto"><span class="fornecedor-dot" style="background:${corProduto(c.produtoId)}"></span>${nomeProduto(c.produtoId)}</td>
-      <td class="col-preco" data-label="Preço do dia">
+      <td class="col-preco" data-label="Preço cotado">
         <input type="number" step="0.001" value="${c.preco !== null && c.preco !== undefined ? c.preco : ""}"
           data-tipo="dia" class="input-preco-historico">
       </td>
@@ -376,7 +376,7 @@ export async function carregarHistorico() {
         ${puxadasDesseCot.map((pux) => `<span class="chip-puxada">${formatarPreco(pux.preco)}${pux.volumeLitros ? ` · ${formatarLitros(pux.volumeLitros)}` : ""}</span>`).join("")}
         ${resumo?.volumeTotal ? `<div class="litros-total">Total: ${formatarLitros(resumo.volumeTotal)}</div>` : ""}
       </td>
-      <td data-label="Dia × puxado">${diffHtml}</td>
+      <td data-label="Cotado × comprado">${diffHtml}</td>
       <td class="col-acao somente-editor" data-label="">
         <button class="btn-icone perigo" data-excluir="${c.id}" title="Excluir">✕</button>
       </td>
@@ -422,8 +422,8 @@ function montarGraficoHistorico(registros, todasPuxadas) {
     data: {
       labels,
       datasets: [
-        { label: "Melhor preço do dia", data: melhores, borderColor: "#0F9D58", backgroundColor: "rgba(15,157,88,.1)", tension: .25, fill: true, pointRadius: 3, spanGaps: true },
-        { label: "Preço puxado (média)", data: puxados, borderColor: "#8E44AD", backgroundColor: "rgba(142,68,173,.08)", borderDash: [5, 4], tension: .25, fill: true, pointRadius: 2, spanGaps: true }
+        { label: "Melhor cotação", data: melhores, borderColor: "#0F9D58", backgroundColor: "rgba(15,157,88,.1)", tension: .25, fill: true, pointRadius: 3, spanGaps: true },
+        { label: "Preço do dia (compra)", data: puxados, borderColor: "#8E44AD", backgroundColor: "rgba(142,68,173,.08)", borderDash: [5, 4], tension: .25, fill: true, pointRadius: 2, spanGaps: true }
       ]
     },
     options: {
@@ -443,7 +443,7 @@ if (tabelaHistorico) {
     if (!e.target.matches('input[data-tipo="dia"]')) return;
     const { data, fornecedor, produto } = e.target.closest("tr").dataset;
     const precoDia = e.target.value === "" ? null : parseFloat(e.target.value);
-    if (precoDia !== null && (isNaN(precoDia) || precoDia < 0)) { toast("Preço do dia inválido.", "erro"); return; }
+    if (precoDia !== null && (isNaN(precoDia) || precoDia < 0)) { toast("Preço cotado inválido.", "erro"); return; }
     await salvarCotacao(data, fornecedor, produto, precoDia);
     toast("Lançamento atualizado.", "sucesso");
     carregarHistorico();
