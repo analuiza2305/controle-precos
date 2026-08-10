@@ -43,16 +43,15 @@ export async function montarDashboard() {
 
   const puxadas = await buscarPuxadasPorData(data);
 
-  // Cards de preço do dia (S10/S500) e resumo de puxadas (litros/fornecedor/preço)
-  // aparecem para todos os perfis.
+  // Cards de preço do dia (S10/S500), resumo de puxadas (litros/fornecedor/preço)
+  // e a lista "Minhas Compras de Hoje" aparecem para todos os perfis.
   montarPrecosDia(cotacoes, puxadas);
   montarResumoPuxadas(puxadas);
+  montarPuxadasVendedor(puxadas);
 
-  if (souVendedor()) {
-    // Vendedor: só a tabela simplificada de puxadas do dia.
-    montarPuxadasVendedor(puxadas);
-  } else {
-    // Editor / visualizador: painel completo (ranking + gráfico).
+  if (!souVendedor()) {
+    // Editor / visualizador: além da lista de compras, também veem o
+    // ranking (melhor cotação × preço do dia) e o gráfico de evolução.
     montarTabelaMelhoresHoje(cotacoes, puxadas);
     montarGraficoEvolucao();
   }
@@ -100,7 +99,7 @@ function montarPrecosDia(cotacoes, puxadas) {
     return `<div class="destaque-card" style="border-top:3px solid ${corProduto(p)}">
       <span class="destaque-tag"><span class="fornecedor-dot" style="background:${corProduto(p)}"></span>${p.nome}</span>
       <div class="destaque-valor">${formatarPreco(precoDia)}</div>
-      <div class="destaque-sub">Preço da puxada do dia</div>
+      <div class="destaque-sub">Preço do dia (compra)</div>
       ${melhorCotacao ? `<div class="destaque-sub destaque-sub-secundario">Melhor cotação: ${formatarPreco(melhorCotacao.preco)}</div>` : ""}
       ${diffHtml}
     </div>`;
@@ -274,7 +273,7 @@ function montarPuxadasVendedor(puxadas) {
     return `<tr class="linha-puxada-vendedor" style="border-left:4px solid ${corProduto(pux.produtoId)}">
       <td data-label="Produto"><span class="fornecedor-dot" style="background:${corProduto(pux.produtoId)}"></span><strong>${nomeProd}</strong></td>
       <td data-label="Fornecedor">${nomeFornecedorLocal(pux.fornecedorId)}</td>
-      <td data-label="Litros">${pux.volumeLitros ? formatarLitros(pux.volumeLitros) + " L" : "—"}</td>
+      <td data-label="Litros">${pux.volumeLitros ? formatarLitros(pux.volumeLitros) : "—"}</td>
       <td data-label="Preço Puxado" class="preco"><strong>${formatarPreco(pux.preco)}</strong></td>
     </tr>`;
   }).join("");
