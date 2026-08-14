@@ -15,7 +15,11 @@ const usuarioEmailEl = document.getElementById("usuario-email");
 const usuarioAvatarEl = document.getElementById("usuario-avatar");
 const btnLogout = document.getElementById("btn-logout");
 
-// Papel do usuário logado: "editor" (pode lançar/editar/excluir) ou "visualizador" (só leitura).
+// Papel do usuário logado:
+// - "editor": pode lançar/editar/excluir tudo (fornecedores, produtos, preço do dia, puxadas)
+// - "operacional": só vê o Dashboard e a página "Lançar Puxadas", e só nela consegue gravar
+// - "vendedor": só vê o Dashboard, em modo leitura (lista "minhas puxadas")
+// - "visualizador" (padrão, sem documento em /papeis): vê tudo, mas somente leitura
 // Por padrão, sem registro em /papeis/{email}, o acesso é somente visualização.
 let papelAtual = "visualizador";
 
@@ -25,6 +29,10 @@ export function souEditor() {
 
 export function souVendedor() {
   return papelAtual === "vendedor";
+}
+
+export function souOperacional() {
+  return papelAtual === "operacional";
 }
 
 export function papelUsuario() {
@@ -106,6 +114,11 @@ document.body.classList.toggle(
     papelAtual === "vendedor"
 );
 
+document.body.classList.toggle(
+    "modo-operacional",
+    papelAtual === "operacional"
+);
+
   const selo = document.getElementById("selo-papel");
 
   if (!selo) return;
@@ -121,6 +134,12 @@ document.body.classList.toggle(
     selo.textContent = "Vendedor";
     selo.className =
       "selo-papel selo-papel-visualizador";
+
+  } else if (souOperacional()) {
+
+    selo.textContent = "Operacional";
+    selo.className =
+      "selo-papel selo-papel-editor";
 
   } else {
 

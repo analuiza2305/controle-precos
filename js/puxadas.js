@@ -15,7 +15,7 @@ function idPuxada(data, fornecedorId, produtoId, timestamp = Date.now()) {
   return `${data}__${fornecedorId}__${produtoId}__${timestamp}`;
 }
 
-export async function salvarPuxada(data, fornecedorId, produtoId, preco, volumeLitros, justificativa, id = null) {
+export async function salvarPuxada(data, fornecedorId, produtoId, preco, volumeLitros, justificativa, id = null, numeroNf = null, numeroPedido = null) {
   if (preco === null || preco === "" || preco === undefined || isNaN(preco)) {
     toast("Preço da puxada é obrigatório.", "erro");
     return null;
@@ -35,6 +35,10 @@ export async function salvarPuxada(data, fornecedorId, produtoId, preco, volumeL
     preco: Number(preco),
     volumeLitros: (volumeLitros === null || volumeLitros === "" || volumeLitros === undefined || isNaN(volumeLitros))
       ? null : Number(volumeLitros),
+    numeroNf: (numeroNf === null || numeroNf === undefined || String(numeroNf).trim() === "")
+      ? null : String(numeroNf).trim(),
+    numeroPedido: (numeroPedido === null || numeroPedido === undefined || String(numeroPedido).trim() === "")
+      ? null : String(numeroPedido).trim(),
     justificativa: justificativa.trim(),
     atualizadoEm: new Date().toISOString()
   }, { merge: true });
@@ -108,6 +112,8 @@ const selectFornecedor = document.getElementById("puxada-form-fornecedor");
 const selectProduto = document.getElementById("puxada-form-produto");
 const inputPreco = document.getElementById("puxada-form-preco");
 const inputLitros = document.getElementById("puxada-form-litros");
+const inputNf = document.getElementById("puxada-form-nf");
+const inputPedido = document.getElementById("puxada-form-pedido");
 const inputMotivo = document.getElementById("puxada-form-motivo");
 const dicaEl = document.getElementById("puxada-form-dica");
 const btnAdd = document.getElementById("btn-add-puxada");
@@ -192,7 +198,7 @@ function montarLista() {
   if (!listaTbody) return;
 
   if (puxadasDoDiaCache.length === 0) {
-    listaTbody.innerHTML = `<tr><td colspan="6" style="color:var(--texto-fraco); text-align:center; padding:20px;">Nenhuma compra registrada neste dia.</td></tr>`;
+    listaTbody.innerHTML = `<tr><td colspan="8" style="color:var(--texto-fraco); text-align:center; padding:20px;">Nenhuma compra registrada neste dia.</td></tr>`;
     return;
   }
 
@@ -200,7 +206,7 @@ function montarLista() {
   const filtradas = alvo ? puxadasDoDiaCache.filter((p) => p.produtoId === alvo) : puxadasDoDiaCache;
 
   if (filtradas.length === 0) {
-    listaTbody.innerHTML = `<tr><td colspan="6" style="color:var(--texto-fraco); text-align:center; padding:20px;">Nenhuma compra para este produto.</td></tr>`;
+    listaTbody.innerHTML = `<tr><td colspan="8" style="color:var(--texto-fraco); text-align:center; padding:20px;">Nenhuma compra para este produto.</td></tr>`;
     return;
   }
 
@@ -216,6 +222,8 @@ function montarLista() {
       <td data-label="Fornecedor"><span class="fornecedor-dot" style="background:${corFornecedor(p.fornecedorId)}"></span>${nomeForn(p.fornecedorId)}</td>
       <td class="preco" data-label="Preço">${formatarPreco(p.preco)}</td>
       <td data-label="Quantidade">${p.volumeLitros ? formatarLitros(p.volumeLitros) : "—"}</td>
+      <td data-label="NF">${p.numeroNf || "—"}</td>
+      <td data-label="Pedido">${p.numeroPedido || "—"}</td>
       <td data-label="Motivo" class="col-motivo-puxada" title="${(p.justificativa || "").replace(/"/g, "&quot;")}">${p.justificativa || "—"}</td>
       <td data-label="" class="col-acao somente-editor">
         <button type="button" class="btn-icone" data-acao="editar" title="Editar">✎</button>
@@ -227,7 +235,7 @@ function montarLista() {
 
 async function carregarPuxadas() {
   const data = inputData.value || hojeISO();
-  if (listaTbody) listaTbody.innerHTML = `<tr><td colspan="6" style="color:var(--texto-fraco)">Carregando...</td></tr>`;
+  if (listaTbody) listaTbody.innerHTML = `<tr><td colspan="8" style="color:var(--texto-fraco)">Carregando...</td></tr>`;
 
   const [puxadasDoDia, cotacoesDoDia] = await Promise.all([
     buscarPuxadasPorData(data),
@@ -264,6 +272,8 @@ function preencherFormParaEdicao(puxada) {
   selectProduto.value = puxada.produtoId;
   inputPreco.value = puxada.preco ?? "";
   inputLitros.value = puxada.volumeLitros ?? "";
+  if (inputNf) inputNf.value = puxada.numeroNf || "";
+  if (inputPedido) inputPedido.value = puxada.numeroPedido || "";
   inputMotivo.value = puxada.justificativa || "";
   formTitulo.textContent = "Editar compra";
   btnAdd.textContent = "Salvar alterações";
@@ -294,6 +304,8 @@ if (formEl) {
     const produtoId = selectProduto.value;
     const preco = inputPreco.value;
     const litros = inputLitros.value;
+    const nf = inputNf ? inputNf.value : "";
+    const pedido = inputPedido ? inputPedido.value : "";
     const motivo = inputMotivo.value;
 
     if (!fornecedorId || !produtoId) {
@@ -303,7 +315,7 @@ if (formEl) {
 
     btnAdd.disabled = true;
     try {
-      const id = await salvarPuxada(data, fornecedorId, produtoId, preco, litros, motivo, edicaoAtualId);
+      const id = await salvarPuxada(data, fornecedorId, produtoId, preco, litros, motivo, edicaoAtualId, nf, pedido);
       if (!id) return; // salvarPuxada já mostrou o toast de erro (preço/motivo faltando)
 
       toast(edicaoAtualId ? "Compra atualizada." : "Compra registrada.", "sucesso");
@@ -320,6 +332,8 @@ if (formEl) {
         // Mantém fornecedor e produto selecionados para agilizar o próximo lançamento
         inputPreco.value = "";
         inputLitros.value = "";
+        if (inputNf) inputNf.value = "";
+        if (inputPedido) inputPedido.value = "";
         inputMotivo.value = "";
         inputPreco.focus();
       }

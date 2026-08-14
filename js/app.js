@@ -3,7 +3,7 @@ import { iniciarFornecedores } from "./fornecedores.js";
 import { iniciarProdutos } from "./produtos.js";
 import { montarComparativo, carregarHistorico } from "./cotacoes-novo.js";
 import { montarDashboard } from "./dashboard-novo.js";
-import { souVendedor, souEditor, papelUsuario } from "./auth.js";
+import { souVendedor, souEditor, souOperacional, papelUsuario } from "./auth.js";
 
 const navItens = document.querySelectorAll(".nav-item");
 const views = document.querySelectorAll(".view");
@@ -55,11 +55,20 @@ aoLogar(() => {
   // - Visualizador: vê TUDO, mas só em modo leitura (inputs/botões de ação
   //   ficam desabilitados pelo CSS .modo-visualizador)
   // - Vendedor: vê APENAS o dashboard
+  // - Operacional: vê o Dashboard e a página "Lançar Puxadas" (onde consegue
+  //   lançar/editar puxadas normalmente); o resto do menu fica escondido
 
   if (papel === "vendedor") {
     // Vendedor só vê o dashboard - remove o resto do menu
     document.querySelector('[data-view="lancamento"]')?.remove();
     document.querySelector('[data-view="puxadas"]')?.remove();
+    document.querySelector('[data-view="comparativo"]')?.remove();
+    document.querySelector('[data-view="historico"]')?.remove();
+    document.querySelector('[data-view="fornecedores"]')?.remove();
+    document.querySelector('[data-view="produtos"]')?.remove();
+  } else if (papel === "operacional") {
+    // Operacional só vê o dashboard e "Lançar Puxadas" - remove o resto do menu
+    document.querySelector('[data-view="lancamento"]')?.remove();
     document.querySelector('[data-view="comparativo"]')?.remove();
     document.querySelector('[data-view="historico"]')?.remove();
     document.querySelector('[data-view="fornecedores"]')?.remove();

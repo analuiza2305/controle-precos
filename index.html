@@ -142,7 +142,7 @@
         <div class="tabela-wrap">
           <table class="tabela tabela-minhas-puxadas" id="tabela-minhas-puxadas">
             <thead>
-              <tr><th>Produto</th><th>Fornecedor</th><th>Litros</th><th>Preço Puxado</th></tr>
+              <tr><th>Produto</th><th>Fornecedor</th><th>Litros</th><th>NF</th><th>Pedido</th><th>Preço Puxado</th></tr>
             </thead>
             <tbody id="minhas-puxadas-tbody"></tbody>
           </table>
@@ -241,6 +241,12 @@
           <label class="campo-form">Quantidade (L)
             <input type="number" step="1" min="0" id="puxada-form-litros" placeholder="Ex.: 2000">
           </label>
+          <label class="campo-form">Número da NF
+            <input type="text" id="puxada-form-nf" placeholder="Ex.: 123456">
+          </label>
+          <label class="campo-form">Número do Pedido
+            <input type="text" id="puxada-form-pedido" placeholder="Ex.: 7890">
+          </label>
           <label class="campo-form campo-form-motivo">Motivo da compra
             <input type="text" id="puxada-form-motivo" placeholder="Ex.: melhor prazo de entrega" required>
           </label>
@@ -259,7 +265,7 @@
         </div>
         <div class="tabela-wrap">
           <table class="tabela" id="tabela-puxadas-lista">
-            <thead><tr><th>Produto</th><th>Fornecedor</th><th>Preço</th><th>Quantidade</th><th>Motivo</th><th></th></tr></thead>
+            <thead><tr><th>Produto</th><th>Fornecedor</th><th>Preço</th><th>Quantidade</th><th>NF</th><th>Pedido</th><th>Motivo</th><th></th></tr></thead>
             <tbody id="puxada-lista-tbody"></tbody>
           </table>
         </div>

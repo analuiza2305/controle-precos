@@ -8,10 +8,24 @@ service cloud.firestore {
 
     // "papeis/{email}" define quem pode editar. Sem documento = somente visualização.
     // Gerenciado manualmente no console do Firestore (ver README).
-    function ehEditor() {
+    function papelDoUsuario() {
+      return get(/databases/$(database)/documents/papeis/$(request.auth.token.email)).data.papel;
+    }
+
+    function temPapel(valor) {
       return autenticado() &&
         exists(/databases/$(database)/documents/papeis/$(request.auth.token.email)) &&
-        get(/databases/$(database)/documents/papeis/$(request.auth.token.email)).data.papel == "editor";
+        papelDoUsuario() == valor;
+    }
+
+    function ehEditor() {
+      return temPapel("editor");
+    }
+
+    // Operacional: só pode lançar/editar/excluir puxadas (não mexe em
+    // fornecedores, produtos, preço do dia/cotações).
+    function ehOperacional() {
+      return temPapel("operacional");
     }
 
     match /papeis/{email} {
@@ -37,7 +51,7 @@ service cloud.firestore {
 
     match /puxadas/{id} {
       allow read: if autenticado();
-      allow write: if ehEditor();
+      allow write: if ehEditor() || ehOperacional();
     }
 
     // Anotações do dia: qualquer pessoa autenticada pode registrar observações,

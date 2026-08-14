@@ -255,7 +255,7 @@ function montarPuxadasVendedor(puxadas) {
   if (!tabelaPuxadas) return;
 
   if (!puxadas || puxadas.length === 0) {
-    tabelaPuxadas.innerHTML = `<tr><td colspan="4" style="color:var(--texto-fraco); text-align:center; padding:20px;">Nenhuma puxada registrada neste dia</td></tr>`;
+    tabelaPuxadas.innerHTML = `<tr><td colspan="6" style="color:var(--texto-fraco); text-align:center; padding:20px;">Nenhuma puxada registrada neste dia</td></tr>`;
     return;
   }
 
@@ -274,6 +274,8 @@ function montarPuxadasVendedor(puxadas) {
       <td data-label="Produto"><span class="fornecedor-dot" style="background:${corProduto(pux.produtoId)}"></span><strong>${nomeProd}</strong></td>
       <td data-label="Fornecedor">${nomeFornecedorLocal(pux.fornecedorId)}</td>
       <td data-label="Litros">${pux.volumeLitros ? formatarLitros(pux.volumeLitros) : "—"}</td>
+      <td data-label="NF">${pux.numeroNf || "—"}</td>
+      <td data-label="Pedido">${pux.numeroPedido || "—"}</td>
       <td data-label="Preço Puxado" class="preco"><strong>${formatarPreco(pux.preco)}</strong></td>
     </tr>`;
   }).join("");

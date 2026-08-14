@@ -71,15 +71,22 @@ firebase deploy
 
 > Se você já tinha publicado as regras do Firestore antes, **republique o arquivo `firestore.rules`** (aba Regras) — ele foi atualizado para checar o papel de cada pessoa antes de permitir gravação.
 
-Por padrão, **qualquer pessoa com login criado só consegue visualizar** — dashboard, comparativo e histórico abrem normalmente, mas os botões de lançar, editar e excluir ficam escondidos e bloqueados. Só quem for marcado explicitamente como **editor** consegue mexer nos dados.
+Por padrão, **qualquer pessoa com login criado só consegue visualizar** — dashboard, comparativo e histórico abrem normalmente, mas os botões de lançar, editar e excluir ficam escondidos e bloqueados. Existem hoje quatro papéis possíveis:
+
+| Papel (`papel`) | O que vê | O que pode gravar |
+|---|---|---|
+| `editor` | Tudo (menu completo) | Tudo: fornecedores, produtos, preço do dia e puxadas |
+| `operacional` | Só **Dashboard** e **Lançar Puxadas** | Só a coleção `puxadas` (adicionar, editar e excluir puxadas) |
+| `vendedor` | Só o **Dashboard**, em modo leitura | Nada — só consulta suas puxadas do dia |
+| *(sem documento)* → visualizador | Tudo (menu completo) | Nada — só leitura |
 
 Isso é controlado por uma coleção no Firestore chamada `papeis`, separada das outras. Para liberar edição para alguém:
 
 1. No **Firebase Console**, vá em **Firestore Database > Dados**.
 2. Crie a coleção `papeis` (se ainda não existir).
-3. Para cada pessoa que pode editar, crie um documento onde:
+3. Para cada pessoa, crie um documento onde:
    - **ID do documento** = o e-mail exato usado no login (ex.: `tati@empresa.com`)
-   - Campo `papel` (string) = `editor`
+   - Campo `papel` (string) = `editor`, `operacional` ou `vendedor`, conforme a tabela acima
 
 Exemplo, pelo que você me passou:
 
@@ -87,10 +94,13 @@ Exemplo, pelo que você me passou:
 |---|---|
 | e-mail da Tati | `editor` |
 | e-mail da Isa | `editor` |
+| e-mail de quem só lança puxadas (operacional) | `operacional` |
 
-Todo o resto — Pamella, Paula, Andrea, Alex, Marcelo, pessoal do operacional — **não precisa de nenhum documento**: sem registro em `papeis`, o acesso já é automaticamente "somente visualização". Só crie as contas deles em **Authentication** (passo 1) normalmente.
+Todo o resto — Pamella, Paula, Andrea, Alex, Marcelo — **não precisa de nenhum documento**: sem registro em `papeis`, o acesso já é automaticamente "somente visualização". Só crie as contas deles em **Authentication** (passo 1) normalmente.
 
-Se um dia quiser trocar alguém de visualizador para editor (ou vice-versa), é só criar/editar/apagar o documento dela em `papeis` — não precisa mexer em nada no código. E como a regra fica valendo no Firestore (não só escondendo botão na tela), mesmo que alguém abra o console do navegador não consegue gravar nada sem estar marcado como editor.
+Se um dia quiser trocar o papel de alguém, é só criar/editar/apagar o documento dela em `papeis` — não precisa mexer em nada no código. E como a regra fica valendo no Firestore (não só escondendo botão na tela), mesmo que alguém abra o console do navegador não consegue gravar nada além do que o papel permite.
+
+> **Importante:** depois de mexer no `firestore.rules`, é preciso **republicar** o arquivo (Firestore Database > aba Regras, colar o conteúdo novo e publicar) — só editar o arquivo local não muda nada em produção.
 
 
 
@@ -107,7 +117,7 @@ Se um dia quiser trocar alguém de visualizador para editor (ou vice-versa), é 
 | `fornecedores` | `nome` (string), `ativo` (boolean) |
 | `produtos` | `nome` (string), `categoria` (string), `unidade` (string) |
 | `cotacoes` | `data` (string `AAAA-MM-DD`), `fornecedorId`, `produtoId`, `preco` (number, preço do dia), `puxadas` (array de `{ preco, volumeLitros }` — uma entrada por carga/puxada recebida do fornecedor naquele dia; `volumeLitros` é opcional), `atualizadoEm` |
-| `papeis` | ID do documento = e-mail da pessoa · `papel` (`"editor"`, ausência = somente visualização) |
+| `papeis` | ID do documento = e-mail da pessoa · `papel` (`"editor"`, `"operacional"`, `"vendedor"`, ausência = somente visualização) |
 
 > Lançamentos antigos (de antes dessa mudança) tinham um único campo `precoPuxado`. O sistema continua lendo esses documentos normalmente, tratando-os como "uma puxada só, sem volume informado" — não é preciso migrar nada manualmente. Assim que um desses lançamentos for editado (preço do dia ou puxadas), ele é convertido automaticamente para o novo formato (`puxadas`).
 
