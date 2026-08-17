@@ -231,9 +231,31 @@ function montarResumoPuxadas(puxadas) {
     : "0 L";
 
   if (precoDaPuxadaEl) {
-    precoDaPuxadaEl.textContent = resumo
-      ? formatarPreco(resumo.referencia)
-      : "-";
+    if (!puxadas || puxadas.length === 0) {
+      precoDaPuxadaEl.innerHTML = "-";
+    } else {
+      // Média simples por produto: soma dos preços das puxadas daquele
+      // produto ÷ quantidade de puxadas (sem ponderar por litros).
+      const porProduto = {};
+      puxadas.forEach((p) => {
+        if (p.preco === null || p.preco === undefined || isNaN(p.preco)) return;
+        if (!porProduto[p.produtoId]) porProduto[p.produtoId] = [];
+        porProduto[p.produtoId].push(p.preco);
+      });
+
+      const partes = Object.keys(porProduto).map((produtoId) => {
+        const precos = porProduto[produtoId];
+        const media = precos.reduce((a, b) => a + b, 0) / precos.length;
+        const produto = produtos.find((pr) => pr.id === produtoId);
+        const nome = produto?.nome || "—";
+        const cor = corProduto(produto);
+        return `<span style="display:inline-flex; align-items:center; gap:6px; margin-right:18px;">
+          <span style="width:8px; height:8px; border-radius:50%; background:${cor}; display:inline-block;"></span>${nome}: ${formatarPreco(media)}
+        </span>`;
+      });
+
+      precoDaPuxadaEl.innerHTML = partes.join("") || "-";
+    }
   }
 
   if (!puxadas || puxadas.length === 0) {
