@@ -80,15 +80,15 @@ export function resumoPuxadas(puxadas) {
   const comVolume = puxadas.filter((p) => p.volumeLitros !== null && p.volumeLitros !== undefined && p.volumeLitros > 0);
   const volumeTotal = comVolume.reduce((s, p) => s + p.volumeLitros, 0);
   const menor = Math.min(...precos);
+  // Média simples: soma dos preços das puxadas ÷ quantidade de puxadas
+  // (sem ponderar por litros). É essa a referência usada em todo o
+  // dashboard, para bater com o "Preço médio pago" do topo.
   const mediaSimples = precos.reduce((a, b) => a + b, 0) / precos.length;
-  const mediaPonderada = comVolume.length > 0
-    ? comVolume.reduce((s, p) => s + p.preco * p.volumeLitros, 0) / volumeTotal
-    : null;
   return {
     quantidade: puxadas.length,
     menor,
     mediaSimples,
-    referencia: mediaPonderada !== null ? mediaPonderada : mediaSimples,
+    referencia: mediaSimples,
     volumeTotal: volumeTotal > 0 ? volumeTotal : null
   };
 }

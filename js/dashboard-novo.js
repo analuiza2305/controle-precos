@@ -234,18 +234,17 @@ function montarResumoPuxadas(puxadas) {
     if (!puxadas || puxadas.length === 0) {
       precoDaPuxadaEl.innerHTML = "-";
     } else {
-      // Média simples por produto: soma dos preços das puxadas daquele
-      // produto ÷ quantidade de puxadas (sem ponderar por litros).
+      // Agrupa por produto e usa resumoPuxadas() — a mesma função usada
+      // nos cards de destaque — para que os dois valores sempre batam.
       const porProduto = {};
       puxadas.forEach((p) => {
         if (p.preco === null || p.preco === undefined || isNaN(p.preco)) return;
         if (!porProduto[p.produtoId]) porProduto[p.produtoId] = [];
-        porProduto[p.produtoId].push(p.preco);
+        porProduto[p.produtoId].push(p);
       });
 
       const partes = Object.keys(porProduto).map((produtoId) => {
-        const precos = porProduto[produtoId];
-        const media = precos.reduce((a, b) => a + b, 0) / precos.length;
+        const media = resumoPuxadas(porProduto[produtoId]).referencia;
         const produto = produtos.find((pr) => pr.id === produtoId);
         const nome = produto?.nome || "—";
         const cor = corProduto(produto);
