@@ -22,6 +22,11 @@ const btnLogout = document.getElementById("btn-logout");
 // - "visualizador" (padrão, sem documento em /papeis): vê tudo, mas somente leitura
 // Por padrão, sem registro em /papeis/{email}, o acesso é somente visualização.
 let papelAtual = "visualizador";
+let emailAtual = "";
+
+export function emailUsuario() {
+  return emailAtual;
+}
 
 export function souEditor() {
   return papelAtual === "editor";
@@ -69,6 +74,7 @@ btnLogout.addEventListener("click", async () => {
 onAuthStateChanged(auth, async (usuario) => {
   if (usuario) {
     papelAtual = "visualizador";
+    emailAtual = (usuario.email || "").toLowerCase();
 
     try {
 

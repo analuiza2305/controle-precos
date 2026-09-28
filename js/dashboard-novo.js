@@ -2,8 +2,8 @@ import { db, auth } from "./firebase-config.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { produtos, aoAtualizarProdutos, corProduto } from "./produtos.js";
 import { fornecedores, aoAtualizarFornecedores } from "./fornecedores.js";
-import { buscarCotacoesPorData, buscarCotacoesRecentes, nomeFornecedor, nomeProduto } from "./cotacoes-novo.js";
-import { buscarPuxadasPorData, buscarPuxadasRecentes, resumoPuxadas } from "./puxadas.js";
+import { buscarCotacoesPorData, buscarCotacoesPorPeriodo, nomeFornecedor, nomeProduto } from "./cotacoes-novo.js";
+import { buscarPuxadasPorData, buscarPuxadasPorPeriodo, resumoPuxadas } from "./puxadas.js";
 import { formatarPreco, formatarLitros, hojeISO, diferencaPreco, formatarPercentual, toast, debounce } from "./utils.js";
 import { souVendedor } from "./auth.js";
 
@@ -15,6 +15,7 @@ const totalLitrosPuxadosEl = document.getElementById("total-litros-puxados");
 const fornecedorDaPuxadaEl = document.getElementById("fornecedor-da-puxada");
 const precoDaPuxadaEl = document.getElementById("preco-da-puxada");
 let grafico = null;
+let timerDashboard = null;
 
 if (inputData) {
   inputData.value = hojeISO();
@@ -37,7 +38,14 @@ if (inputData) {
   aoAtualizarFornecedores(montarDashboard);
 }
 
-export async function montarDashboard() {
+// Vários gatilhos disparam o dashboard quase juntos (login + snapshot de produtos +
+// snapshot de fornecedores). O debounce junta tudo numa única leitura.
+export function montarDashboard() {
+  clearTimeout(timerDashboard);
+  timerDashboard = setTimeout(montarDashboardAgora, 400);
+}
+
+async function montarDashboardAgora() {
   const data = inputData.value || hojeISO();
   const cotacoes = await buscarCotacoesPorData(data);
 
@@ -167,9 +175,14 @@ async function montarGraficoEvolucao() {
     return;
   }
 
+  // O gráfico mostra só os últimos 30 dias com lançamento; busca os últimos 60 dias
+  // (antes baixava até 3000 + 3000 registros do histórico inteiro a cada abertura).
+  const corte = new Date();
+  corte.setDate(corte.getDate() - 60);
+  const dataCorte = new Date(corte - corte.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const [todas, todasPuxadas] = await Promise.all([
-    buscarCotacoesRecentes(3000),
-    buscarPuxadasRecentes(3000)
+    buscarCotacoesPorPeriodo(dataCorte, null),
+    buscarPuxadasPorPeriodo(dataCorte, null)
   ]);
   const doProduto = todas.filter((c) => c.produtoId === produtoId && c.preco !== null && c.preco !== undefined);
   const puxadasDoProduto = todasPuxadas.filter((p) => p.produtoId === produtoId && p.preco !== null && p.preco !== undefined && !isNaN(p.preco));

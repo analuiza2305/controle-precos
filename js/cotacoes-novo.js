@@ -8,7 +8,8 @@ import {
   toast, confirmar, formatarData, formatarPreco, formatarLitros, hojeISO, corFornecedor,
   diferencaPreco, formatarPercentual, ehProdutoDestaque
 } from "./utils.js";
-import { buscarPuxadasPorData, resumoPuxadas as resumoPuxadasNova, deletarPuxada } from "./puxadas.js";
+import { buscarPuxadasPorData, buscarPuxadasPorPeriodo, resumoPuxadas as resumoPuxadasNova, deletarPuxada } from "./puxadas.js";
+import { papelUsuario, emailUsuario } from "./auth.js";
 
 const colecaoRef = collection(db, "cotacoes");
 
@@ -44,6 +45,15 @@ export async function buscarCotacoesPorData(data) {
 
 export async function buscarCotacoesRecentes(max = 1000) {
   const q = query(colecaoRef, orderBy("data", "desc"), limit(max));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export async function buscarCotacoesPorPeriodo(ini, fim, max = 5000) {
+  const filtros = [];
+  if (ini) filtros.push(where("data", ">=", ini));
+  if (fim) filtros.push(where("data", "<=", fim));
+  const q = query(colecaoRef, ...filtros, orderBy("data", "desc"), limit(max));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
@@ -109,6 +119,7 @@ async function montarGradeLancamento() {
             <input type="number" step="0.001" min="0" placeholder="0,000"
               class="input-preco-dia ${valorDia !== null ? "preenchido" : ""}"
               value="${valorDia !== null ? valorDia : ""}"
+              data-original="${valorDia !== null ? valorDia : ""}"
               data-produto="${p.id}" data-fornecedor="${f.id}">
           </td>`;
         }).join("")}
@@ -141,11 +152,13 @@ if (tbody) {
   tbody.addEventListener("blur", async (e) => {
     if (e.target.tagName !== "INPUT") return;
     const { produto, fornecedor } = e.target.dataset;
+    if (e.target.value === (e.target.dataset.original ?? "")) return; // nada mudou: não grava nem exclui
     const data = inputData.value || hojeISO();
     const preco = e.target.value === "" ? null : parseFloat(e.target.value);
     
     try {
       await salvarCotacao(data, fornecedor, produto, preco);
+      e.target.dataset.original = e.target.value;
       e.target.classList.toggle("preenchido", preco !== null);
       statusEl.textContent = "Salvo ✓";
       statusEl.classList.add("ok");
@@ -163,7 +176,9 @@ if (tbody) {
 if (btnSalvarTudo) {
   btnSalvarTudo.addEventListener("click", async () => {
     if (!tbody) return;
-    const inputs = [...tbody.querySelectorAll('input[type="number"]')];
+    // só as células alteradas (evita exclusões/gravações desnecessárias em células vazias)
+    const inputs = [...tbody.querySelectorAll('input[type="number"]')]
+      .filter((i) => i.value !== (i.dataset.original ?? ""));
     const data = inputData.value || hojeISO();
     btnSalvarTudo.disabled = true;
     btnSalvarTudo.textContent = "Salvando...";
@@ -323,15 +338,76 @@ function preencherSelect(select, itens, textoTodos) {
 
 let graficoHistorico = null;
 
+// ------------------------------------------------------------
+// Média de custo do período (aba Histórico)
+// Só aparece para quem estiver em uma das listas abaixo.
+// Basta o papel OU o e-mail bater. Para liberar mais gente,
+// é só adicionar na lista correspondente.
+// ------------------------------------------------------------
+const PAPEIS_COM_MEDIA_HISTORICO = ["editor"];
+const EMAILS_COM_MEDIA_HISTORICO = [
+  "administrativo3@petroservpetroleo.com.br",
+  // "fulano@empresa.com",
+];
+
+function podeVerMediaHistorico() {
+  return PAPEIS_COM_MEDIA_HISTORICO.includes(papelUsuario()) ||
+    EMAILS_COM_MEDIA_HISTORICO.map((e) => e.toLowerCase()).includes(emailUsuario());
+}
+
+// Média simples: soma dos preços das puxadas ÷ quantidade de puxadas,
+// calculada separadamente por produto (misturar produtos não faz sentido).
+// Com um produto no filtro aparece só ele; com "Todos", um cartão por produto.
+function montarMediaHistorico(puxadas) {
+  const el = document.getElementById("historico-media");
+  if (!el) return;
+
+  if (!podeVerMediaHistorico()) {
+    el.classList.add("oculto");
+    el.innerHTML = "";
+    return;
+  }
+
+  const porProduto = {};
+  puxadas.forEach((p) => {
+    if (p.preco === null || p.preco === undefined || isNaN(p.preco)) return;
+    (porProduto[p.produtoId] ||= []).push(p.preco);
+  });
+
+  const ids = Object.keys(porProduto).sort((a, b) => nomeProduto(a).localeCompare(nomeProduto(b), "pt-BR"));
+
+  const ini = histDataInicio.value, fim = histDataFim.value;
+  const periodo = `${ini ? formatarData(ini) : "início"} a ${fim ? formatarData(fim) : "hoje"}`;
+
+  const cartoes = ids.length
+    ? ids.map((id) => {
+        const precos = porProduto[id];
+        const media = precos.reduce((soma, v) => soma + v, 0) / precos.length;
+        return `
+      <div class="media-card" style="border-left-color:${corProduto(id)}">
+        <span class="media-card-produto">${nomeProduto(id)}</span>
+        <strong class="media-card-valor">${formatarPreco(media)}<small> /L</small></strong>
+        <span class="media-card-qtd">${precos.length} puxada${precos.length === 1 ? "" : "s"}</span>
+      </div>`;
+      }).join("")
+    : `<div class="media-card"><span class="media-card-qtd">Sem puxadas no período</span></div>`;
+
+  el.innerHTML = `<div class="media-titulo">Custo médio das puxadas · ${periodo}</div><div class="media-cards">${cartoes}</div>`;
+  el.classList.remove("oculto");
+}
+
 export async function carregarHistorico() {
   if (!tabelaHistorico) return;
   tabelaHistorico.innerHTML = `<tr><td colspan="7" style="color:var(--texto-fraco)">Carregando...</td></tr>`;
   
-  const todas = await buscarCotacoesRecentes(2000);
-  const todasPuxadas = await buscarPuxadasPorData("");
-  
   const ini = histDataInicio.value;
   const fim = histDataFim.value;
+
+  // Lê do Firestore apenas o período filtrado (antes baixava até 2000 + 2000 registros a cada consulta)
+  const [todas, puxadasRecentes] = await Promise.all([
+    buscarCotacoesPorPeriodo(ini, fim),
+    buscarPuxadasPorPeriodo(ini, fim)
+  ]);
   const fornSel = histFornecedor.value;
   const prodSel = histProduto.value;
 
@@ -342,6 +418,17 @@ export async function carregarHistorico() {
     if (prodSel && c.produtoId !== prodSel) return false;
     return true;
   }).sort((a, b) => b.data.localeCompare(a.data));
+
+  // Puxadas dentro dos mesmos filtros (data, fornecedor e produto)
+  const todasPuxadas = puxadasRecentes.filter((p) => {
+    if (ini && p.data < ini) return false;
+    if (fim && p.data > fim) return false;
+    if (fornSel && p.fornecedorId !== fornSel) return false;
+    if (prodSel && p.produtoId !== prodSel) return false;
+    return true;
+  });
+
+  montarMediaHistorico(todasPuxadas);
 
   const contador = document.getElementById("historico-contador");
   if (contador) contador.textContent = `${filtradas.length} lançamento${filtradas.length === 1 ? "" : "s"} encontrado${filtradas.length === 1 ? "" : "s"}`;

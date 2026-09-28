@@ -1085,3 +1085,22 @@ button, input, select {
   .login-card { padding: 24px 18px 18px; }
   .login-brand h1 { font-size: 17px; }
 }
+
+/* Média de custo das puxadas no período (Histórico) — à direita dos filtros */
+.historico-media { margin-left: auto; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.media-titulo { font-size: 11px; font-weight: 600; color: var(--texto-fraco); text-transform: uppercase; letter-spacing: .04em; }
+.media-cards { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.media-card {
+  display: flex; flex-direction: column; gap: 1px;
+  min-width: 130px; padding: 8px 12px;
+  background: #fff; border: 1px solid var(--borda); border-left: 4px solid var(--verde);
+  border-radius: 8px;
+}
+.media-card-produto { font-size: 12px; font-weight: 600; color: var(--texto-suave); }
+.media-card-valor { font-size: 17px; }
+.media-card-valor small { font-size: 11px; font-weight: 400; color: var(--texto-fraco); }
+.media-card-qtd { font-size: 11px; color: var(--texto-fraco); }
+@media (max-width: 720px) {
+  .historico-media { margin-left: 0; align-items: stretch; width: 100%; }
+  .media-cards { justify-content: flex-start; }
+}

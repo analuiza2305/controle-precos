@@ -70,6 +70,17 @@ export async function buscarPuxadasRecentes(max = 2000) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+// Busca só o período pedido (em vez de baixar os N registros mais recentes).
+// Range + orderBy no MESMO campo (data) não exige índice composto.
+export async function buscarPuxadasPorPeriodo(ini, fim, max = 5000) {
+  const filtros = [];
+  if (ini) filtros.push(where("data", ">=", ini));
+  if (fim) filtros.push(where("data", "<=", fim));
+  const q = query(colecaoRef, ...filtros, orderBy("data", "desc"), limit(max));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
 export async function deletarPuxada(id) {
   await deleteDoc(doc(db, "puxadas", id)).catch(() => {});
 }
