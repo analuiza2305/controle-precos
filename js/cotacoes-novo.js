@@ -344,7 +344,7 @@ let graficoHistorico = null;
 // Basta o papel OU o e-mail bater. Para liberar mais gente,
 // é só adicionar na lista correspondente.
 // ------------------------------------------------------------
-const PAPEIS_COM_MEDIA_HISTORICO = ["editor"];
+const PAPEIS_COM_MEDIA_HISTORICO = ["editor", "gerencia_vendas"];
 const EMAILS_COM_MEDIA_HISTORICO = [
   "administrativo3@petroservpetroleo.com.br",
   // "fulano@empresa.com",

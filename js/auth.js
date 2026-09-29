@@ -19,6 +19,7 @@ const btnLogout = document.getElementById("btn-logout");
 // - "editor": pode lançar/editar/excluir tudo (fornecedores, produtos, preço do dia, puxadas)
 // - "operacional": só vê o Dashboard e a página "Lançar Puxadas", e só nela consegue gravar
 // - "vendedor": só vê o Dashboard, em modo leitura (lista "minhas puxadas")
+// - "gerencia_vendas": só vê o Dashboard e o Histórico (com o card de média de custo), em modo leitura
 // - "visualizador" (padrão, sem documento em /papeis): vê tudo, mas somente leitura
 // Por padrão, sem registro em /papeis/{email}, o acesso é somente visualização.
 let papelAtual = "visualizador";
@@ -38,6 +39,10 @@ export function souVendedor() {
 
 export function souOperacional() {
   return papelAtual === "operacional";
+}
+
+export function souGerenciaVendas() {
+  return papelAtual === "gerencia_vendas";
 }
 
 export function papelUsuario() {
@@ -111,11 +116,6 @@ onAuthStateChanged(auth, async (usuario) => {
 function aplicarModoVisualizacao() {
 
 document.body.classList.toggle(
-    "modo-visualizador",
-    papelAtual === "visualizador"
-);
-
-document.body.classList.toggle(
     "modo-vendedor",
     papelAtual === "vendedor"
 );
@@ -123,6 +123,11 @@ document.body.classList.toggle(
 document.body.classList.toggle(
     "modo-operacional",
     papelAtual === "operacional"
+);
+
+document.body.classList.toggle(
+    "modo-visualizador",
+    papelAtual === "visualizador" || papelAtual === "gerencia_vendas"
 );
 
   const selo = document.getElementById("selo-papel");
@@ -146,6 +151,12 @@ document.body.classList.toggle(
     selo.textContent = "Operacional";
     selo.className =
       "selo-papel selo-papel-editor";
+
+  } else if (souGerenciaVendas()) {
+
+    selo.textContent = "Gerência de Vendas";
+    selo.className =
+      "selo-papel selo-papel-visualizador";
 
   } else {
 
