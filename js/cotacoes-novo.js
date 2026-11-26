@@ -430,20 +430,40 @@ export async function carregarHistorico() {
 
   montarMediaHistorico(todasPuxadas);
 
+  // Monta as linhas a partir de cotações E puxadas (dia + fornecedor + produto).
+  // Antes a tabela só tinha linhas de cotação, então puxadas feitas em dias/fornecedores
+  // sem cotação lançada não apareciam (mas entravam no card de custo médio).
+  const chave = (r) => `${r.data}__${r.fornecedorId}__${r.produtoId}`;
+  const linhasMap = new Map();
+  filtradas.forEach((c) => linhasMap.set(chave(c), { ...c, puxadas: [] }));
+  todasPuxadas.forEach((p) => {
+    const k = chave(p);
+    if (!linhasMap.has(k)) {
+      linhasMap.set(k, { id: null, data: p.data, fornecedorId: p.fornecedorId, produtoId: p.produtoId, preco: null, puxadas: [] });
+    }
+    linhasMap.get(k).puxadas.push(p);
+  });
+  const linhas = [...linhasMap.values()].sort((a, b) =>
+    b.data.localeCompare(a.data) ||
+    nomeFornecedor(a.fornecedorId).localeCompare(nomeFornecedor(b.fornecedorId), "pt-BR") ||
+    nomeProduto(a.produtoId).localeCompare(nomeProduto(b.produtoId), "pt-BR")
+  );
+
   const contador = document.getElementById("historico-contador");
-  if (contador) contador.textContent = `${filtradas.length} lançamento${filtradas.length === 1 ? "" : "s"} encontrado${filtradas.length === 1 ? "" : "s"}`;
+  if (contador) {
+    const nCot = filtradas.length, nPux = todasPuxadas.length;
+    contador.textContent = `${nCot} cotaç${nCot === 1 ? "ão" : "ões"} · ${nPux} puxada${nPux === 1 ? "" : "s"} no período`;
+  }
 
   montarGraficoHistorico(filtradas, todasPuxadas);
 
-  if (filtradas.length === 0) {
+  if (linhas.length === 0) {
     tabelaHistorico.innerHTML = `<tr><td colspan="7"><div class="estado-vazio">Nenhum lançamento encontrado para os filtros selecionados.</div></td></tr>`;
     return;
   }
 
-  tabelaHistorico.innerHTML = filtradas.map((c) => {
-    const puxadasDesseCot = todasPuxadas.filter((p) => 
-      p.data === c.data && p.fornecedorId === c.fornecedorId && p.produtoId === c.produtoId
-    );
+  tabelaHistorico.innerHTML = linhas.map((c) => {
+    const puxadasDesseCot = c.puxadas;
     const resumo = resumoPuxadasNova(puxadasDesseCot);
     const diff = diferencaPreco(c.preco, resumo?.referencia ?? null);
     const diffHtml = diff
@@ -451,13 +471,13 @@ export async function carregarHistorico() {
       : `<span style="color:var(--texto-fraco)">—</span>`;
     
     return `
-    <tr data-id="${c.id}" data-data="${c.data}" data-fornecedor="${c.fornecedorId}" data-produto="${c.produtoId}">
+    <tr data-id="${c.id ?? ""}" data-data="${c.data}" data-fornecedor="${c.fornecedorId}" data-produto="${c.produtoId}">
       <td class="col-data" data-label="Data">${formatarData(c.data)}</td>
       <td data-label="Fornecedor"><span class="fornecedor-dot" style="background:${corFornecedor(c.fornecedorId)}"></span>${nomeFornecedor(c.fornecedorId)}</td>
       <td data-label="Produto"><span class="fornecedor-dot" style="background:${corProduto(c.produtoId)}"></span>${nomeProduto(c.produtoId)}</td>
       <td class="col-preco" data-label="Preço cotado">
         <input type="number" step="0.001" value="${c.preco !== null && c.preco !== undefined ? c.preco : ""}"
-          data-tipo="dia" class="input-preco-historico">
+          data-tipo="dia" class="input-preco-historico" placeholder="sem cotação">
       </td>
       <td data-label="Puxadas do dia" class="col-puxadas-historico">
         ${puxadasDesseCot.map((pux) => `<span class="chip-puxada">${formatarPreco(pux.preco)}${pux.volumeLitros ? ` · ${formatarLitros(pux.volumeLitros)}` : ""}</span>`).join("")}
@@ -465,7 +485,7 @@ export async function carregarHistorico() {
       </td>
       <td data-label="Cotado × comprado">${diffHtml}</td>
       <td class="col-acao somente-editor" data-label="">
-        <button class="btn-icone perigo" data-excluir="${c.id}" title="Excluir">✕</button>
+        ${c.id ? `<button class="btn-icone perigo" data-excluir="${c.id}" title="Excluir">✕</button>` : ""}
       </td>
     </tr>
   `;
